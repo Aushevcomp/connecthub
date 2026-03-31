@@ -1,0 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent text-white;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bg-tertiary rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-text-tertiary;
+  }
+}
+
+@layer components {
+  .glass-header {
+    @apply bg-bg-primary/85 backdrop-blur-xl;
+    backdrop-filter: blur(20px) saturate(1.5);
+  }
+
+  .card {
+    @apply bg-bg-card border border-border rounded-card transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    @apply border-white/[0.06];
+  }
+
+  .btn-primary {
+    @apply px-5 py-2 rounded-button font-semibold text-sm text-white cursor-pointer
+      transition-all duration-200 inline-flex items-center gap-1.5;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+  }
+
+  .btn-ghost {
+    @apply px-5 py-2 rounded-button font-semibold text-sm text-text-secondary
+      cursor-pointer transition-all duration-200 inline-flex items-center gap-1.5
+      border border-border bg-transparent;
+  }
+  .btn-ghost:hover {
+    @apply bg-bg-tertiary text-text-primary border-border-focus;
+  }
+
+  .input-field {
+    @apply w-full h-11 rounded-button bg-bg-tertiary/40 border border-border
+      text-text-primary font-sans text-sm px-3.5 outline-none transition-all duration-200;
+  }
+  .input-field:focus {
+    @apply border-border-focus bg-bg-hover;
+  }
+  .input-field::placeholder {
+    @apply text-text-tertiary;
+  }
+
+  .tag {
+    @apply text-xs text-accent bg-accent-soft px-2.5 py-0.5 rounded-full font-medium;
+  }
+
+  .tag-tech {
+    @apply text-xs text-accent2 bg-accent2-soft px-2.5 py-0.5 rounded-full font-semibold font-mono;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
