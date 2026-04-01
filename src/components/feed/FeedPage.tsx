@@ -25,41 +25,51 @@ export function FeedPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+
+      // Fetch posts with authors
       const { data, error } = await supabase
         .from("posts")
-        .select(`*, author:profiles!posts_author_id_fkey(*), poll:polls(*, options:poll_options(*))`)
+        .select("*, author:profiles!posts_author_id_fkey(*)")
         .order("created_at", { ascending: false })
         .limit(20);
 
       if (error) throw error;
 
-      let filtered = (data || []) as Post[];
+      // Fetch polls separately
+      const postIds = (data || []).map((p: any) => p.id);
+      const { data: pollsData } = await supabase
+        .from("polls")
+        .select("*, options:poll_options(*)")
+        .in("post_id", postIds);
 
-      if (feedTab === "companies") filtered = filtered.filter((p) => p.author?.account_type === "business");
-      else if (feedTab === "people") filtered = filtered.filter((p) => p.author?.account_type === "user");
-      else if (feedTab === "polls") filtered = filtered.filter((p) => {
-        const poll = Array.isArray(p.poll) ? p.poll[0] : p.poll;
-        return poll && poll.options && poll.options.length > 0;
+      // Map polls to posts
+      const pollMap = new Map();
+      (pollsData || []).forEach((poll: any) => {
+        pollMap.set(poll.post_id, poll);
       });
 
-      filtered = filtered.map((p) => ({
+      // Combine posts with polls
+      let filtered = (data || []).map((p: any) => ({
         ...p,
-        poll: Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined,
-      }));
+        poll: pollMap.get(p.id) || undefined,
+      })) as Post[];
+
+      // Tab filtering
+      if (feedTab === "companies") {
+        filtered = filtered.filter((p) => p.author?.account_type === "business");
+      } else if (feedTab === "people") {
+        filtered = filtered.filter((p) => p.author?.account_type === "user");
+      } else if (feedTab === "polls") {
+        filtered = filtered.filter((p) => p.poll && p.poll.options && p.poll.options.length > 0);
+      }
 
       // Fetch user likes
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser && filtered.length > 0) {
-        const postIds = filtered.map((p) => p.id);
-        const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
+        const likePostIds = filtered.map((p) => p.id);
+        const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", likePostIds);
         const likedSet = new Set((likes || []).map((l: any) => l.post_id));
-        filtered = filtered.map((p) => {
-        let poll = Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined;
-        if (poll && (!poll.options || poll.options.length === 0)) {
-          poll = undefined;
-        }
-        return { ...p, poll };
-      });
+        filtered = filtered.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
       }
 
       setPosts(filtered);
