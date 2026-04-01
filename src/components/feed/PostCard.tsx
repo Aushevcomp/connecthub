@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, Bookmark, Eye, Check, Image as ImageIcon } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, Eye, Check, Send, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { timeAgo, formatNumber, cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import type { Post, Poll } from "@/types";
+import type { Post, Poll, Comment } from "@/types";
 
 // ─── Poll Component ───
 function PollCard({ poll }: { poll: Poll }) {
@@ -52,6 +52,165 @@ function PollCard({ poll }: { poll: Poll }) {
   );
 }
 
+// ─── Comment Item ───
+function CommentItem({ comment }: { comment: Comment }) {
+  return (
+    <div className="flex gap-2.5 py-3">
+      <Avatar name={comment.author?.name || "?"} size={32} src={comment.author?.avatar_url} isCompany={comment.author?.account_type === "business"} />
+      <div className="flex-1 min-w-0">
+        <div className="bg-bg-tertiary rounded-xl px-3.5 py-2.5">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm font-semibold">{comment.author?.name || "Пользователь"}</span>
+            {comment.author?.is_verified && (
+              <span className="w-3.5 h-3.5 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            )}
+            <span className="text-[11px] text-text-tertiary">{timeAgo(comment.created_at)}</span>
+          </div>
+          <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Comments Section ───
+function CommentsSection({ postId, commentsCount }: { postId: string; commentsCount: number }) {
+  const { user, openAuthModal } = useAuth();
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [sending, setSending] = useState(false);
+  const [totalCount, setTotalCount] = useState(commentsCount);
+
+  const fetchComments = async () => {
+    if (expanded && comments.length > 0) {
+      setExpanded(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("comments")
+        .select("*, author:profiles!comments_author_id_fkey(*)")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true })
+        .limit(50);
+      setComments((data || []) as Comment[]);
+      setExpanded(true);
+    } catch (err) {
+      console.error("Fetch comments error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!newComment.trim()) return;
+    if (!user) { openAuthModal(); return; }
+
+    setSending(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("comments")
+        .insert({
+          post_id: postId,
+          author_id: user.id,
+          content: newComment.trim(),
+          likes_count: 0,
+        })
+        .select("*, author:profiles!comments_author_id_fkey(*)")
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setComments([...comments, data as Comment]);
+        setTotalCount(totalCount + 1);
+        setExpanded(true);
+      }
+
+      // Update post comments count
+      await supabase
+        .from("posts")
+        .update({ comments_count: totalCount + 1 })
+        .eq("id", postId);
+
+      setNewComment("");
+    } catch (err) {
+      console.error("Comment error:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Toggle comments */}
+      {totalCount > 0 && (
+        <button
+          onClick={fetchComments}
+          className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent transition-colors mt-1 mb-1"
+        >
+          {loading ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : expanded ? (
+            <ChevronUp size={14} />
+          ) : (
+            <ChevronDown size={14} />
+          )}
+          {expanded ? "Скрыть комментарии" : `Показать комментарии (${totalCount})`}
+        </button>
+      )}
+
+      {/* Comments list */}
+      {expanded && comments.length > 0 && (
+        <div className="border-t border-border mt-2 pt-1">
+          {comments.map((c) => (
+            <CommentItem key={c.id} comment={c} />
+          ))}
+        </div>
+      )}
+
+      {/* Comment input */}
+      <div className="flex gap-2.5 mt-2 pt-2 border-t border-border">
+        <Avatar name={user?.name || "?"} size={32} src={user?.avatar_url} isCompany={user?.account_type === "business"} />
+        <div className="flex-1 flex gap-2">
+          <input
+            className="flex-1 h-9 rounded-full bg-bg-tertiary border border-border text-sm text-text-primary px-3.5 outline-none transition-all placeholder:text-text-tertiary focus:border-border-focus font-sans"
+            placeholder={user ? "Написать комментарий..." : "Войдите, чтобы комментировать"}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onFocus={() => !user && openAuthModal()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={sending || !newComment.trim()}
+            className={cn(
+              "w-9 h-9 rounded-full flex items-center justify-center transition-all flex-shrink-0",
+              newComment.trim()
+                ? "bg-accent text-white hover:bg-accent-hover"
+                : "bg-bg-tertiary text-text-tertiary"
+            )}
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Post Card ───
 interface PostCardProps {
   post: Post;
@@ -80,7 +239,6 @@ export function PostCard({ post }: PostCardProps) {
       } else {
         await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", user.id);
       }
-      // Sync real count
       const { count } = await supabase
         .from("post_likes")
         .select("id", { count: "exact", head: true })
@@ -89,7 +247,6 @@ export function PostCard({ post }: PostCardProps) {
       setLikeCount(realCount);
       await supabase.from("posts").update({ likes_count: realCount }).eq("id", post.id);
     } catch (err) {
-      // Revert on error
       setLiked(!newLiked);
       setLikeCount(newLiked ? likeCount - 1 : likeCount + 1);
       console.error("Like error:", err);
@@ -166,6 +323,9 @@ export function PostCard({ post }: PostCardProps) {
           <Bookmark size={16} fill={saved ? "currentColor" : "none"} /> {saved ? "Сохранено" : "Сохранить"}
         </button>
       </div>
+
+      {/* Comments */}
+      <CommentsSection postId={post.id} commentsCount={post.comments_count} />
     </article>
   );
 }
