@@ -19,7 +19,7 @@ export function FeedPage() {
   const { feedTab, setFeedTab } = useAppStore();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
