@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { timeAgo, formatNumber, cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { sendNotification } from "@/lib/notifications";
 import type { Post, Poll, Comment } from "@/types";
 
 // ─── Poll ───
@@ -73,7 +74,7 @@ function CommentItem({ comment }: { comment: Comment }) {
 }
 
 // ─── Comments Section ───
-function CommentsSection({ postId, commentsCount }: { postId: string; commentsCount: number }) {
+function CommentsSection({ postId, commentsCount, postAuthorId }: { postId: string; commentsCount: number; postAuthorId: string }) {
   const { user, openAuthModal } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -108,6 +109,7 @@ function CommentsSection({ postId, commentsCount }: { postId: string; commentsCo
       if (error) throw error;
       if (data) { setComments([...comments, data as Comment]); setTotalCount(totalCount + 1); setExpanded(true); }
       await supabase.from("posts").update({ comments_count: totalCount + 1 }).eq("id", postId);
+      sendNotification({ userId: postAuthorId, actorId: user.id, type: "comment", message: "прокомментировал(а) ваш пост", link: "/" });
       setNewComment("");
     } catch (err) { console.error(err); }
     finally { setSending(false); }
@@ -171,7 +173,10 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
     setLikeCount(newLiked ? likeCount + 1 : likeCount - 1);
     try {
       const supabase = createClient();
-      if (newLiked) { await supabase.from("post_likes").insert({ post_id: post.id, user_id: user.id }); }
+      if (newLiked) {
+        await supabase.from("post_likes").insert({ post_id: post.id, user_id: user.id });
+        if (post.author_id) sendNotification({ userId: post.author_id, actorId: user.id, type: "like", message: "оценил(а) ваш пост", link: "/" });
+      }
       else { await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", user.id); }
       const { count } = await supabase.from("post_likes").select("id", { count: "exact", head: true }).eq("post_id", post.id);
       const realCount = count || 0;
@@ -288,7 +293,7 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
         </button>
       </div>
 
-      <CommentsSection postId={post.id} commentsCount={post.comments_count} />
+      <CommentsSection postId={post.id} commentsCount={post.comments_count} postAuthorId={post.author_id} />
     </article>
   );
 }

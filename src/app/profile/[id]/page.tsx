@@ -8,6 +8,7 @@ import { PostCard } from "@/components/feed/PostCard";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { timeAgo, formatNumber } from "@/lib/utils";
+import { sendNotification } from "@/lib/notifications";
 import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2 } from "lucide-react";
 import Link from "next/link";
 import type { Profile, Post } from "@/types";
@@ -106,6 +107,7 @@ function UserProfileContent() {
         setIsFollowing(false);
       } else {
         await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: profileId });
+        sendNotification({ userId: profileId, actorId: currentUser.id, type: "follow", message: "подписался(-ась) на вас", link: `/profile/${currentUser.id}` });
         setFollowersCount(followersCount + 1);
         await supabase.from("profiles").update({ followers_count: followersCount + 1 }).eq("id", profileId);
         setIsFollowing(true);
