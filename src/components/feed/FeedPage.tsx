@@ -17,6 +17,7 @@ const TABS = [
 
 export function FeedPage() {
   const { feedTab, setFeedTab } = useAppStore();
+  const user = useAppStore((s) => s.user);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,7 @@ export function FeedPage() {
 
       let filtered = (data || []) as Post[];
 
+      // Client-side tab filtering
       if (feedTab === "companies") {
         filtered = filtered.filter((p) => p.author?.account_type === "business");
       } else if (feedTab === "people") {
@@ -46,10 +48,24 @@ export function FeedPage() {
         filtered = filtered.filter((p) => p.poll && (p.poll as any).length > 0);
       }
 
+      // Normalize poll (comes as array from join)
       filtered = filtered.map((p) => ({
         ...p,
         poll: Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined,
       }));
+
+      // Fetch user's likes for these posts
+      if (user && filtered.length > 0) {
+        const postIds = filtered.map((p) => p.id);
+        const { data: likes } = await supabase
+          .from("post_likes")
+          .select("post_id")
+          .eq("user_id", user.id)
+          .in("post_id", postIds);
+
+        const likedSet = new Set((likes || []).map((l: any) => l.post_id));
+        filtered = filtered.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
+      }
 
       setPosts(filtered);
     } catch (err) {
@@ -61,22 +77,15 @@ export function FeedPage() {
 
   useEffect(() => {
     fetchPosts();
-  }, [feedTab]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [feedTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
       <div className="flex gap-1 bg-bg-card border border-border rounded-card p-1 mb-5">
         {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFeedTab(key)}
-            className={cn(
-              "flex-1 py-2.5 px-4 rounded-button text-sm font-medium transition-all",
-              feedTab === key
-                ? "bg-accent-soft text-accent font-semibold"
-                : "text-text-secondary hover:text-text-primary"
-            )}
-          >
+          <button key={key} onClick={() => setFeedTab(key)}
+            className={cn("flex-1 py-2.5 px-4 rounded-button text-sm font-medium transition-all",
+              feedTab === key ? "bg-accent-soft text-accent font-semibold" : "text-text-secondary hover:text-text-primary")}>
             {label}
           </button>
         ))}
@@ -96,8 +105,7 @@ export function FeedPage() {
                 </div>
               </div>
               <div className="h-4 w-full bg-bg-tertiary rounded mb-2" />
-              <div className="h-4 w-3/4 bg-bg-tertiary rounded mb-2" />
-              <div className="h-4 w-1/2 bg-bg-tertiary rounded" />
+              <div className="h-4 w-3/4 bg-bg-tertiary rounded" />
             </div>
           ))}
         </div>
