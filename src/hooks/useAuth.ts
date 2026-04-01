@@ -1,50 +1,55 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/lib/store";
 import type { Profile } from "@/types";
 
 export function useAuth() {
   const { user, setUser, openAuthModal } = useAppStore();
-  const supabase = createClient();
+  const initialized = useRef(false);
 
   useEffect(() => {
-    // Get initial session
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const supabase = createClient();
+
     supabase.auth.getUser().then(({ data: { user: authUser } }) => {
       if (authUser) {
-        fetchProfile(authUser.id);
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single()
+          .then(({ data }) => {
+            if (data) setUser(data as Profile);
+          });
       }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchProfile(session.user.id);
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single()
+          .then(({ data }) => {
+            if (data) setUser(data as Profile);
+          });
       } else {
         setUser(null);
       }
     });
 
     return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (data) {
-      setUser(data as Profile);
-    }
-  }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function signOut() {
+    const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
   }

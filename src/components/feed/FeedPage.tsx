@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { PostComposer } from "@/components/feed/PostComposer";
 import { PostCard } from "@/components/feed/PostCard";
 import { useAppStore } from "@/lib/store";
@@ -19,12 +19,12 @@ export function FeedPage() {
   const { feedTab, setFeedTab } = useAppStore();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from("posts")
         .select(`
           *,
@@ -34,13 +34,10 @@ export function FeedPage() {
         .order("created_at", { ascending: false })
         .limit(20);
 
-      const { data, error } = await query;
-
       if (error) throw error;
 
       let filtered = (data || []) as Post[];
 
-      // Client-side filtering by tab
       if (feedTab === "companies") {
         filtered = filtered.filter((p) => p.author?.account_type === "business");
       } else if (feedTab === "people") {
@@ -49,7 +46,6 @@ export function FeedPage() {
         filtered = filtered.filter((p) => p.poll && (p.poll as any).length > 0);
       }
 
-      // Normalize poll data (comes as array from join)
       filtered = filtered.map((p) => ({
         ...p,
         poll: Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined,
@@ -61,15 +57,14 @@ export function FeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [feedTab, supabase]);
+  };
 
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+  }, [feedTab]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
-      {/* Tabs */}
       <div className="flex gap-1 bg-bg-card border border-border rounded-card p-1 mb-5">
         {TABS.map(({ key, label }) => (
           <button
@@ -87,10 +82,8 @@ export function FeedPage() {
         ))}
       </div>
 
-      {/* Composer */}
       <PostComposer onPostCreated={fetchPosts} />
 
-      {/* Posts */}
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
