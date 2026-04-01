@@ -15,7 +15,7 @@ export function Sidebar() {
     { href: "/", label: "Лента", icon: Home, badge: null },
     { href: "/jobs", label: "Вакансии", icon: Briefcase, badge: null },
     { href: "/profile", label: "Профиль", icon: User, badge: null, requiresAuth: true },
-    { href: "/", label: "Компании", icon: Building2, badge: null },
+    { href: "/companies", label: "Компании", icon: Building2, badge: null },
     ...(user?.is_admin ? [{ href: "/admin", label: "Админ-панель", icon: Shield, badge: null }] : []),
   ];
 
