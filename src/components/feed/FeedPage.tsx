@@ -77,7 +77,7 @@ export function FeedPage() {
 
   useEffect(() => {
     fetchPosts();
-  }, [feedTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [feedTab, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
