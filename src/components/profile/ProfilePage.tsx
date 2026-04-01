@@ -24,7 +24,7 @@ function EditProfileModal({
   onSaved: () => void;
 }) {
   const { user } = useAuth();
-  const [supabase] = useState(() => createClient());
+  const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
