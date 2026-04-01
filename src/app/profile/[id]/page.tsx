@@ -8,77 +8,111 @@ import { PostCard } from "@/components/feed/PostCard";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { timeAgo, formatNumber } from "@/lib/utils";
-import { MapPin, Users, Link as LinkIcon, Calendar, Check, Loader2, ArrowLeft, UserPlus, Building2 } from "lucide-react";
+import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2 } from "lucide-react";
 import Link from "next/link";
 import type { Profile, Post } from "@/types";
 
 function UserProfileContent() {
   const params = useParams();
   const profileId = params.id as string;
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, openAuthModal } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
 
   useEffect(() => {
-    async function fetchProfile() {
+    if (!profileId) return;
+
+    async function fetchAll() {
       setLoading(true);
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", profileId)
-          .single();
-        setProfile(data as Profile);
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    }
+      const supabase = createClient();
 
-    async function fetchPosts() {
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", profileId)
+        .single();
+
+      if (profileData) {
+        setProfile(profileData as Profile);
+        setFollowersCount(profileData.followers_count || 0);
+      }
+      setLoading(false);
+
+      // Check follow status
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: followData } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", authUser.id)
+          .eq("following_id", profileId)
+          .maybeSingle();
+        setIsFollowing(!!followData);
+      }
+
+      // Fetch posts
       setPostsLoading(true);
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("posts")
-          .select("*, author:profiles!posts_author_id_fkey(*)")
-          .eq("author_id", profileId)
-          .order("created_at", { ascending: false })
-          .limit(20);
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select("*, author:profiles!posts_author_id_fkey(*)")
+        .eq("author_id", profileId)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-        let postsList = (data || []) as Post[];
+      let postsList = (postsData || []) as Post[];
 
-        // Fetch polls
+      if (postsList.length > 0) {
         const postIds = postsList.map((p) => p.id);
-        if (postIds.length > 0) {
-          const { data: pollsData } = await supabase
-            .from("polls")
-            .select("*, options:poll_options(*)")
-            .in("post_id", postIds);
-          const pollMap = new Map();
-          (pollsData || []).forEach((poll: any) => pollMap.set(poll.post_id, poll));
-          postsList = postsList.map((p) => ({ ...p, poll: pollMap.get(p.id) || undefined }));
 
-          // Fetch likes
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
-            const likedSet = new Set((likes || []).map((l: any) => l.post_id));
-            postsList = postsList.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
-          }
+        // Polls
+        const { data: pollsData } = await supabase
+          .from("polls")
+          .select("*, options:poll_options(*)")
+          .in("post_id", postIds);
+        const pollMap = new Map();
+        (pollsData || []).forEach((poll: any) => pollMap.set(poll.post_id, poll));
+        postsList = postsList.map((p) => ({ ...p, poll: pollMap.get(p.id) || undefined }));
+
+        // Likes
+        if (authUser) {
+          const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
+          const likedSet = new Set((likes || []).map((l: any) => l.post_id));
+          postsList = postsList.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
         }
+      }
 
-        setPosts(postsList);
-      } catch (err) { console.error(err); }
-      finally { setPostsLoading(false); }
+      setPosts(postsList);
+      setPostsLoading(false);
     }
 
-    if (profileId) {
-      fetchProfile();
-      fetchPosts();
-    }
+    fetchAll();
   }, [profileId]);
+
+  const handleFollow = async () => {
+    if (!currentUser) { openAuthModal(); return; }
+    setFollowLoading(true);
+    try {
+      const supabase = createClient();
+      if (isFollowing) {
+        await supabase.from("follows").delete().eq("follower_id", currentUser.id).eq("following_id", profileId);
+        setFollowersCount(Math.max(0, followersCount - 1));
+        await supabase.from("profiles").update({ followers_count: Math.max(0, followersCount - 1) }).eq("id", profileId);
+        setIsFollowing(false);
+      } else {
+        await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: profileId });
+        setFollowersCount(followersCount + 1);
+        await supabase.from("profiles").update({ followers_count: followersCount + 1 }).eq("id", profileId);
+        setIsFollowing(true);
+      }
+    } catch (err) { console.error("Follow error:", err); }
+    finally { setFollowLoading(false); }
+  };
 
   if (loading) {
     return (
@@ -144,7 +178,7 @@ function UserProfileContent() {
                 <span className="flex items-center gap-1"><MapPin size={14} /> {profile.location}</span>
               )}
               <span className="flex items-center gap-1">
-                <Users size={14} /> {formatNumber(profile.followers_count)} подписчиков
+                <Users size={14} /> {formatNumber(followersCount)} подписчиков
               </span>
               {profile.website && (
                 <a href={profile.website} target="_blank" rel="noopener noreferrer"
@@ -161,17 +195,27 @@ function UserProfileContent() {
             {isOwnProfile ? (
               <Link href="/profile" className="btn-ghost text-sm">Редактировать</Link>
             ) : (
-              <button className="btn-primary text-sm"><UserPlus size={14} /> Подписаться</button>
+              <button
+                className={isFollowing ? "btn-ghost text-sm" : "btn-primary text-sm"}
+                onClick={handleFollow}
+                disabled={followLoading}
+              >
+                {followLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : isFollowing ? (
+                  <><UserMinus size={14} /> Отписаться</>
+                ) : (
+                  <><UserPlus size={14} /> Подписаться</>
+                )}
+              </button>
             )}
           </div>
         </div>
 
-        {/* Bio */}
         {profile.bio && (
           <p className="mt-4 text-sm text-text-secondary leading-relaxed">{profile.bio}</p>
         )}
 
-        {/* Skills */}
         {profile.skills && profile.skills.length > 0 && (
           <div className="flex gap-2 flex-wrap mt-4">
             {profile.skills.map((s) => <span key={s} className="tag-tech">{s}</span>)}
