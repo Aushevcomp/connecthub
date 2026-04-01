@@ -54,13 +54,15 @@ export function FeedPage() {
         poll: Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined,
       }));
 
-      // Fetch user's likes for these posts
-      if (user && filtered.length > 0) {
+
+      // Fetch user's likes — use auth session to get current user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser && filtered.length > 0) {
         const postIds = filtered.map((p) => p.id);
         const { data: likes } = await supabase
           .from("post_likes")
           .select("post_id")
-          .eq("user_id", user.id)
+          .eq("user_id", authUser.id)
           .in("post_id", postIds);
 
         const likedSet = new Set((likes || []).map((l: any) => l.post_id));
