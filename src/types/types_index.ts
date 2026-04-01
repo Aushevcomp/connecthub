@@ -18,6 +18,10 @@ export interface Profile {
   followers_count: number;
   following_count: number;
   is_verified: boolean;
+  is_admin: boolean;
+  is_banned: boolean;
+  banned_at: string | null;
+  banned_reason: string | null;
   created_at: string;
   updated_at: string;
 }
