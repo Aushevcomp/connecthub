@@ -106,7 +106,7 @@ export function Header() {
     setShowResults(false);
     setQuery("");
     if (result.type === "job") router.push("/jobs");
-    else if (result.type === "user") router.push("/profile");
+    else if (result.type === "user") router.push(`/profile/${result.id}`);
     else router.push("/");
   };
 

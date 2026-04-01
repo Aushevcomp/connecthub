@@ -1,0 +1,210 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
+import { Avatar } from "@/components/ui/Avatar";
+import { PostCard } from "@/components/feed/PostCard";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { timeAgo, formatNumber } from "@/lib/utils";
+import { MapPin, Users, Link as LinkIcon, Calendar, Check, Loader2, ArrowLeft, UserPlus, Building2 } from "lucide-react";
+import Link from "next/link";
+import type { Profile, Post } from "@/types";
+
+function UserProfileContent() {
+  const params = useParams();
+  const profileId = params.id as string;
+  const { user: currentUser } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      setLoading(true);
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", profileId)
+          .single();
+        setProfile(data as Profile);
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    }
+
+    async function fetchPosts() {
+      setPostsLoading(true);
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("posts")
+          .select("*, author:profiles!posts_author_id_fkey(*)")
+          .eq("author_id", profileId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        let postsList = (data || []) as Post[];
+
+        // Fetch polls
+        const postIds = postsList.map((p) => p.id);
+        if (postIds.length > 0) {
+          const { data: pollsData } = await supabase
+            .from("polls")
+            .select("*, options:poll_options(*)")
+            .in("post_id", postIds);
+          const pollMap = new Map();
+          (pollsData || []).forEach((poll: any) => pollMap.set(poll.post_id, poll));
+          postsList = postsList.map((p) => ({ ...p, poll: pollMap.get(p.id) || undefined }));
+
+          // Fetch likes
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
+            const likedSet = new Set((likes || []).map((l: any) => l.post_id));
+            postsList = postsList.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
+          }
+        }
+
+        setPosts(postsList);
+      } catch (err) { console.error(err); }
+      finally { setPostsLoading(false); }
+    }
+
+    if (profileId) {
+      fetchProfile();
+      fetchPosts();
+    }
+  }, [profileId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-5xl mb-3 opacity-30">🔍</div>
+        <p className="text-text-secondary mb-4">Профиль не найден</p>
+        <Link href="/" className="btn-primary inline-flex"><ArrowLeft size={16} /> На главную</Link>
+      </div>
+    );
+  }
+
+  const isOwnProfile = currentUser?.id === profile.id;
+  const isCompany = profile.account_type === "business";
+
+  return (
+    <div className="animate-fade-in-up">
+      {/* Banner */}
+      <div className="h-44 rounded-card relative"
+        style={{
+          background: profile.banner_url
+            ? `url(${profile.banner_url}) center/cover`
+            : isCompany
+              ? "linear-gradient(135deg, #06d6a0, #0ea5e9, #6366f1)"
+              : "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
+        }}>
+        <div className="absolute -bottom-12 left-6 border-4 border-bg-primary rounded-full">
+          <Avatar name={profile.name} size={96} src={profile.avatar_url} isCompany={isCompany} />
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="mt-16 mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-extrabold flex items-center gap-2">
+              {profile.name}
+              {profile.is_verified && (
+                <span className="w-5 h-5 rounded-full bg-accent flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </span>
+              )}
+              {isCompany && (
+                <span className="text-[10px] font-bold text-accent2 bg-accent2-soft px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Building2 size={10} /> Компания
+                </span>
+              )}
+            </h1>
+            <p className="text-text-secondary mt-1">
+              {profile.role || (isCompany ? "Бизнес-аккаунт" : "Специалист")}
+              {profile.company ? ` @ ${profile.company}` : ""}
+            </p>
+
+            <div className="flex flex-wrap gap-4 mt-3 text-sm text-text-tertiary">
+              {profile.location && (
+                <span className="flex items-center gap-1"><MapPin size={14} /> {profile.location}</span>
+              )}
+              <span className="flex items-center gap-1">
+                <Users size={14} /> {formatNumber(profile.followers_count)} подписчиков
+              </span>
+              {profile.website && (
+                <a href={profile.website} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:text-accent transition-colors">
+                  <LinkIcon size={14} /> {profile.website.replace(/https?:\/\//, "")}
+                </a>
+              )}
+              <span className="flex items-center gap-1">
+                <Calendar size={14} /> {timeAgo(profile.created_at)}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {isOwnProfile ? (
+              <Link href="/profile" className="btn-ghost text-sm">Редактировать</Link>
+            ) : (
+              <button className="btn-primary text-sm"><UserPlus size={14} /> Подписаться</button>
+            )}
+          </div>
+        </div>
+
+        {/* Bio */}
+        {profile.bio && (
+          <p className="mt-4 text-sm text-text-secondary leading-relaxed">{profile.bio}</p>
+        )}
+
+        {/* Skills */}
+        {profile.skills && profile.skills.length > 0 && (
+          <div className="flex gap-2 flex-wrap mt-4">
+            {profile.skills.map((s) => <span key={s} className="tag-tech">{s}</span>)}
+          </div>
+        )}
+      </div>
+
+      {/* Posts */}
+      <div>
+        <h2 className="text-lg font-bold mb-4">
+          Публикации {posts.length > 0 && `(${posts.length})`}
+        </h2>
+        {postsLoading ? (
+          <div className="card p-8 text-center">
+            <Loader2 size={24} className="animate-spin text-accent mx-auto" />
+          </div>
+        ) : posts.length > 0 ? (
+          posts.map((post) => <PostCard key={post.id} post={post} />)
+        ) : (
+          <div className="card p-8 text-center">
+            <div className="text-4xl mb-3 opacity-30">📝</div>
+            <p className="text-text-secondary">Пока нет публикаций</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function ProfileByIdPage() {
+  return (
+    <AppShell>
+      <UserProfileContent />
+    </AppShell>
+  );
+}

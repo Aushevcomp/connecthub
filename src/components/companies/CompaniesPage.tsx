@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Search, MapPin, Users, Check, ExternalLink } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { createClient } from "@/lib/supabase/client";
@@ -80,7 +81,7 @@ export function CompaniesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((c) => (
-            <div key={c.id} className="card card-hover p-5 transition-all hover:-translate-y-0.5 hover:border-accent cursor-pointer">
+            <Link key={c.id} href={`/profile/${c.id}`} className="card card-hover p-5 transition-all hover:-translate-y-0.5 hover:border-accent cursor-pointer block">
               <div className="flex gap-4">
                 <Avatar name={c.name} size={56} src={c.avatar_url} isCompany className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -129,7 +130,7 @@ export function CompaniesPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
