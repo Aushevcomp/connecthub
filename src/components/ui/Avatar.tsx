@@ -13,21 +13,29 @@ interface AvatarProps {
 export function Avatar({ name, size = 40, src, isCompany, className = "" }: AvatarProps) {
   const color = getAvatarColor(name);
   const initials = getInitials(name);
+  const radius = isCompany ? "20%" : "50%";
 
   return (
     <div
-      className={`flex-shrink-0 flex items-center justify-center text-white font-bold ${className}`}
+      className={`flex-shrink-0 flex items-center justify-center text-white font-bold overflow-hidden ${className}`}
       style={{
         width: size,
         height: size,
-        borderRadius: isCompany ? 8 : "50%",
-        background: src ? `url(${src}) center/cover` : `linear-gradient(135deg, ${color}, ${color}dd)`,
+        borderRadius: radius,
+        background: src ? undefined : `linear-gradient(135deg, ${color}, ${color}dd)`,
         fontSize: size * 0.38,
         letterSpacing: "0.5px",
-        border: isCompany ? `2px solid ${color}40` : "none",
       }}
     >
-      {!src && initials}
+      {src ? (
+        <img
+          src={src}
+          alt={name}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        initials
+      )}
     </div>
   );
 }

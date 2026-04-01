@@ -367,7 +367,7 @@ export function ProfilePage() {
     <div className="animate-fade-in-up">
       {/* Banner */}
       <div
-        className="h-44 rounded-card relative overflow-hidden"
+        className="h-44 rounded-card relative"
         style={{
           background: user.banner_url
             ? `url(${user.banner_url}) center/cover`
