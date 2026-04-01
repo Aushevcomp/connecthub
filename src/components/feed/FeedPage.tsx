@@ -27,11 +27,7 @@ export function FeedPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("posts")
-        .select(`
-          *,
-          author:profiles!posts_author_id_fkey(*),
-          poll:polls(*, options:poll_options(*))
-        `)
+        .select(`*, author:profiles!posts_author_id_fkey(*), poll:polls(*, options:poll_options(*))`)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -39,47 +35,30 @@ export function FeedPage() {
 
       let filtered = (data || []) as Post[];
 
-      // Client-side tab filtering
-      if (feedTab === "companies") {
-        filtered = filtered.filter((p) => p.author?.account_type === "business");
-      } else if (feedTab === "people") {
-        filtered = filtered.filter((p) => p.author?.account_type === "user");
-      } else if (feedTab === "polls") {
-        filtered = filtered.filter((p) => p.poll && (p.poll as any).length > 0);
-      }
+      if (feedTab === "companies") filtered = filtered.filter((p) => p.author?.account_type === "business");
+      else if (feedTab === "people") filtered = filtered.filter((p) => p.author?.account_type === "user");
+      else if (feedTab === "polls") filtered = filtered.filter((p) => p.poll && (p.poll as any).length > 0);
 
-      // Normalize poll (comes as array from join)
       filtered = filtered.map((p) => ({
         ...p,
         poll: Array.isArray(p.poll) && p.poll.length > 0 ? p.poll[0] : undefined,
       }));
 
-
-      // Fetch user's likes — use auth session to get current user
+      // Fetch user likes
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser && filtered.length > 0) {
         const postIds = filtered.map((p) => p.id);
-        const { data: likes } = await supabase
-          .from("post_likes")
-          .select("post_id")
-          .eq("user_id", authUser.id)
-          .in("post_id", postIds);
-
+        const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
         const likedSet = new Set((likes || []).map((l: any) => l.post_id));
         filtered = filtered.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
       }
 
       setPosts(filtered);
-    } catch (err) {
-      console.error("Fetch posts error:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Fetch posts error:", err); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchPosts();
-  }, [feedTab, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchPosts(); }, [feedTab, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -99,15 +78,8 @@ export function FeedPage() {
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="card p-5 animate-pulse">
-              <div className="flex gap-3 mb-4">
-                <div className="w-11 h-11 rounded-full bg-bg-tertiary" />
-                <div className="flex-1">
-                  <div className="h-4 w-32 bg-bg-tertiary rounded mb-2" />
-                  <div className="h-3 w-24 bg-bg-tertiary rounded" />
-                </div>
-              </div>
-              <div className="h-4 w-full bg-bg-tertiary rounded mb-2" />
-              <div className="h-4 w-3/4 bg-bg-tertiary rounded" />
+              <div className="flex gap-3 mb-4"><div className="w-11 h-11 rounded-full bg-bg-tertiary" /><div className="flex-1"><div className="h-4 w-32 bg-bg-tertiary rounded mb-2" /><div className="h-3 w-24 bg-bg-tertiary rounded" /></div></div>
+              <div className="h-4 w-full bg-bg-tertiary rounded mb-2" /><div className="h-4 w-3/4 bg-bg-tertiary rounded" />
             </div>
           ))}
         </div>
@@ -115,10 +87,9 @@ export function FeedPage() {
         <div className="text-center py-16 text-text-tertiary">
           <div className="text-5xl mb-3 opacity-30">📭</div>
           <p>Пока нет постов в этой категории</p>
-          <p className="text-sm mt-1">Будьте первым, кто напишет!</p>
         </div>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        posts.map((post) => <PostCard key={post.id} post={post} onDeleted={fetchPosts} />)
       )}
     </div>
   );
