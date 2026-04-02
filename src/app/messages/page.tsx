@@ -5,7 +5,7 @@ import { MessagesPage } from "@/components/messages/MessagesPage";
 
 export default function Messages() {
   return (
-    <AppShell>
+    <AppShell showRightPanel={false} maxWidth="wide">
       <Suspense
         fallback={
           <div className="card p-10 text-center">

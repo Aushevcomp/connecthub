@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
   MessageSquare,
+  Search,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +35,371 @@ function sortConversations(items: Conversation[]) {
   );
 }
 
+function getDialogLabel(count: number) {
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+
+  if (lastDigit === 1 && lastTwoDigits !== 11) return "диалог";
+  if (
+    lastDigit >= 2 &&
+    lastDigit <= 4 &&
+    (lastTwoDigits < 12 || lastTwoDigits > 14)
+  ) {
+    return "диалога";
+  }
+
+  return "диалогов";
+}
+
+function getPartnerSubtitle(partner?: Profile | null) {
+  if (!partner) return "ConnectHub";
+
+  return (
+    partner.role ||
+    partner.company ||
+    (partner.account_type === "business" ? "Бизнес-аккаунт" : "Специалист")
+  );
+}
+
+function getConversationPreview(conversation: Conversation) {
+  return (
+    conversation.last_message_text ||
+    "Диалог открыт. Первое сообщение часто запускает нужный контакт."
+  );
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="space-y-2 p-2">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-[24px] border border-border bg-bg-secondary/70 p-4 animate-pulse"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-bg-tertiary" />
+            <div className="flex-1 min-w-0">
+              <div className="h-4 w-32 bg-bg-tertiary rounded-full" />
+              <div className="h-3 w-24 bg-bg-tertiary rounded-full mt-2" />
+              <div className="h-3 w-full bg-bg-tertiary rounded-full mt-3" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConversationListItem({
+  conversation,
+  isActive,
+  onClick,
+}: {
+  conversation: Conversation;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const partner = conversation.partner;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative w-full overflow-hidden rounded-[24px] border px-4 py-4 text-left transition-all duration-200",
+        isActive
+          ? "border-accent/20 bg-accent/10 shadow-[0_12px_40px_rgba(99,102,241,0.16)]"
+          : "border-transparent bg-bg-secondary/65 hover:border-border hover:bg-bg-hover/80"
+      )}
+    >
+      <div
+        className={cn(
+          "absolute left-0 top-5 bottom-5 w-1 rounded-r-full transition-all",
+          isActive ? "bg-accent" : "bg-transparent group-hover:bg-accent/40"
+        )}
+      />
+      <div className="flex items-start gap-3">
+        <Avatar
+          name={partner?.name || "?"}
+          size={46}
+          src={partner?.avatar_url || null}
+          isCompany={partner?.account_type === "business"}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold truncate">
+                {partner?.name || "Новый диалог"}
+              </p>
+              <p className="text-xs text-text-secondary truncate mt-1">
+                {getPartnerSubtitle(partner)}
+              </p>
+            </div>
+            <span className="text-[11px] text-text-tertiary flex-shrink-0">
+              {timeAgo(conversation.last_message_at)}
+            </span>
+          </div>
+
+          <p className="text-sm text-text-secondary leading-relaxed truncate mt-3">
+            {getConversationPreview(conversation)}
+          </p>
+        </div>
+
+        {(conversation.unread_count || 0) > 0 && (
+          <span className="min-w-[22px] h-[22px] rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center px-1.5 flex-shrink-0 shadow-[0_8px_18px_rgba(99,102,241,0.35)]">
+            {conversation.unread_count}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function ThreadTimeline({
+  messages,
+  loading,
+  currentUserId,
+  bottomRef,
+  emptyCopy,
+}: {
+  messages: DirectMessage[];
+  loading: boolean;
+  currentUserId: string;
+  bottomRef: RefObject<HTMLDivElement | null>;
+  emptyCopy: string;
+}) {
+  return (
+    <div className="relative flex-1 overflow-y-auto px-4 md:px-6 py-5 md:py-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(6,214,160,0.09),transparent_28%)]" />
+      <div
+        className="absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(148,163,184,0.28) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.28) 1px, transparent 1px)",
+          backgroundSize: "36px 36px",
+        }}
+      />
+
+      <div className="relative space-y-3">
+        {loading ? (
+          <div className="h-full min-h-[420px] flex items-center justify-center text-text-secondary">
+            <Loader2 size={24} className="animate-spin text-accent" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="min-h-[420px] flex flex-col items-center justify-center text-center px-6">
+            <div className="w-16 h-16 rounded-[22px] bg-bg-secondary/90 border border-border text-accent flex items-center justify-center shadow-[0_18px_60px_rgba(99,102,241,0.12)]">
+              <MessageSquare size={28} />
+            </div>
+            <p className="text-xl font-bold mt-5">Начните разговор</p>
+            <p className="text-text-secondary mt-2 max-w-md leading-relaxed">
+              {emptyCopy}
+            </p>
+          </div>
+        ) : (
+          messages.map((message) => {
+            const isMine = message.sender_id === currentUserId;
+
+            return (
+              <div
+                key={message.id}
+                className={cn("flex", isMine ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[min(78%,42rem)] rounded-[26px] px-4 py-3.5 shadow-[0_10px_32px_rgba(15,23,42,0.08)]",
+                    isMine
+                      ? "text-white rounded-br-lg bg-[linear-gradient(135deg,#6366f1,#7c3aed)]"
+                      : "rounded-bl-lg border border-border bg-bg-secondary/92 backdrop-blur-sm"
+                  )}
+                >
+                  <p className="text-[15px] leading-6 whitespace-pre-wrap break-words">
+                    {message.content}
+                  </p>
+                  <div
+                    className={cn(
+                      "mt-2 flex items-center gap-2 text-[11px]",
+                      isMine ? "text-white/70" : "text-text-tertiary"
+                    )}
+                  >
+                    <span>{timeAgo(message.created_at)}</span>
+                    {isMine && (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-white/45" />
+                        <span>{message.is_read ? "Прочитано" : "Отправлено"}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
+function MessageComposer({
+  draft,
+  setDraft,
+  handleSend,
+  sending,
+}: {
+  draft: string;
+  setDraft: (value: string) => void;
+  handleSend: () => void;
+  sending: boolean;
+}) {
+  return (
+    <div className="border-t border-border bg-bg-secondary/80 p-3 md:p-4">
+      <div className="rounded-[26px] border border-border bg-bg-primary/75 backdrop-blur-sm p-2.5 pl-4 flex items-end gap-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+        <textarea
+          rows={1}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder="Напишите сообщение..."
+          className="flex-1 bg-transparent text-sm md:text-[15px] leading-6 text-text-primary placeholder:text-text-tertiary outline-none resize-none min-h-[48px] max-h-36 py-2"
+        />
+        <button
+          type="button"
+          className="w-12 h-12 rounded-[18px] flex items-center justify-center text-white disabled:opacity-60 shadow-[0_18px_40px_rgba(99,102,241,0.35)] bg-[linear-gradient(135deg,#6366f1,#7c3aed)]"
+          onClick={handleSend}
+          disabled={!draft.trim() || sending}
+        >
+          {sending ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <Send size={18} />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ThreadPane({
+  selectedConversation,
+  selectedPartner,
+  messages,
+  loadingMessages,
+  currentUserId,
+  draft,
+  setDraft,
+  handleSend,
+  sending,
+  bottomRef,
+  mobile = false,
+  onBack,
+}: {
+  selectedConversation: Conversation | null;
+  selectedPartner: Profile | null;
+  messages: DirectMessage[];
+  loadingMessages: boolean;
+  currentUserId: string;
+  draft: string;
+  setDraft: (value: string) => void;
+  handleSend: () => void;
+  sending: boolean;
+  bottomRef: RefObject<HTMLDivElement | null>;
+  mobile?: boolean;
+  onBack?: () => void;
+}) {
+  if (!selectedConversation) {
+    return (
+      <div className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/90 min-h-[720px] flex items-center justify-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(6,214,160,0.08),transparent_30%)]" />
+        <div className="relative text-center px-8 max-w-lg">
+          <div className="w-20 h-20 rounded-[26px] bg-bg-primary/90 border border-border text-accent flex items-center justify-center mx-auto shadow-[0_24px_60px_rgba(99,102,241,0.12)]">
+            <MessageSquare size={34} />
+          </div>
+          <p className="text-2xl font-black mt-6">Выберите диалог</p>
+          <p className="text-text-secondary leading-relaxed mt-3">
+            Здесь будет полноценный inbox: обсуждения запусков, вакансий, партнёрств и любых полезных контактов из ConnectHub.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-bg-primary/85 px-4 py-2 text-sm text-text-secondary">
+            <Sparkles size={16} className="text-accent" />
+            Начать можно прямо из любого профиля кнопкой «Написать»
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/88 shadow-[0_20px_80px_rgba(15,23,42,0.08)] flex flex-col",
+        mobile ? "min-h-[74vh]" : "min-h-[760px]"
+      )}
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.10),transparent_34%)] pointer-events-none" />
+
+      <div className="relative border-b border-border px-4 md:px-6 py-4 bg-bg-secondary/94 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {mobile && onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-10 h-10 rounded-[14px] flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all flex-shrink-0"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
+            <Avatar
+              name={selectedPartner?.name || "?"}
+              size={48}
+              src={selectedPartner?.avatar_url || null}
+              isCompany={selectedPartner?.account_type === "business"}
+            />
+            <div className="min-w-0">
+              <p className="font-bold text-lg truncate">
+                {selectedPartner?.name || "Диалог"}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-sm text-text-secondary truncate">
+                  {getPartnerSubtitle(selectedPartner)}
+                </span>
+                <span className="hidden md:inline-flex items-center rounded-full border border-border bg-bg-primary/90 px-2.5 py-1 text-[11px] font-medium text-text-tertiary">
+                  Личный диалог
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {selectedPartner && (
+            <Link href={`/profile/${selectedPartner.id}`} className="btn-ghost text-sm">
+              Профиль
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <ThreadTimeline
+        messages={messages}
+        loading={loadingMessages}
+        currentUserId={currentUserId}
+        bottomRef={bottomRef}
+        emptyCopy="Первое сообщение лучше делать коротким и по делу: кто вы, чем полезны и зачем пишете."
+      />
+
+      <MessageComposer
+        draft={draft}
+        setDraft={setDraft}
+        handleSend={handleSend}
+        sending={sending}
+      />
+    </div>
+  );
+}
+
 export function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,6 +413,7 @@ export function MessagesPage() {
   );
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [query, setQuery] = useState("");
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -53,6 +427,37 @@ export function MessagesPage() {
   );
 
   const selectedPartner = selectedConversation?.partner || null;
+  const totalUnread = useMemo(
+    () =>
+      conversations.reduce(
+        (total, conversation) => total + (conversation.unread_count || 0),
+        0
+      ),
+    [conversations]
+  );
+
+  const filteredConversations = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return conversations;
+    }
+
+    return conversations.filter((conversation) => {
+      const partner = conversation.partner;
+      const haystack = [
+        partner?.name,
+        partner?.role,
+        partner?.company,
+        conversation.last_message_text,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [conversations, query]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -416,21 +821,24 @@ export function MessagesPage() {
 
   if (!user) {
     return (
-      <div className="card p-10 text-center">
-        <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto">
-          <MessageSquare size={28} />
+      <div className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/90 p-8 md:p-12 text-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.12),transparent_32%)]" />
+        <div className="relative">
+          <div className="w-20 h-20 rounded-[26px] bg-bg-primary/90 border border-border text-accent flex items-center justify-center mx-auto shadow-[0_24px_60px_rgba(99,102,241,0.14)]">
+            <MessageSquare size={34} />
+          </div>
+          <h1 className="text-3xl font-black mt-6">Сообщения доступны после входа</h1>
+          <p className="text-text-secondary mt-3 max-w-xl mx-auto leading-relaxed">
+            Личные диалоги нужны, чтобы быстро переводить интерес из профиля, вакансии или контента в живой контакт.
+          </p>
+          <button
+            type="button"
+            className="btn-primary mt-7 mx-auto"
+            onClick={() => openAuthModal("login")}
+          >
+            Войти
+          </button>
         </div>
-        <h1 className="text-2xl font-extrabold mt-5">Сообщения доступны после входа</h1>
-        <p className="text-text-secondary mt-3 max-w-md mx-auto">
-          Войди в аккаунт, чтобы начать диалоги со специалистами, командами и бизнес-аккаунтами.
-        </p>
-        <button
-          type="button"
-          className="btn-primary mt-6 mx-auto"
-          onClick={() => openAuthModal("login")}
-        >
-          Войти
-        </button>
       </div>
     );
   }
@@ -438,366 +846,201 @@ export function MessagesPage() {
   const showMobileThread = Boolean(selectedConversation);
 
   return (
-    <div className="animate-fade-in-up">
-      <div className="mb-5">
-        <h1 className="text-2xl font-extrabold">Сообщения</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Личные диалоги с людьми, стартапами и бизнес-аккаунтами.
-        </p>
-      </div>
-
-      <div className="hidden lg:grid lg:grid-cols-[320px_1fr] gap-6 min-h-[720px]">
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-sm text-text-secondary">
-              {loadingConversations
-                ? "Загружаем диалоги..."
-                : `${conversations.length} ${conversations.length === 1 ? "диалог" : "диалогов"}`}
+    <div className="space-y-5 animate-fade-in-up">
+      <section className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/88 p-5 md:p-7 shadow-[0_22px_90px_rgba(15,23,42,0.08)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(6,214,160,0.10),transparent_28%)]" />
+        <div className="relative flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-primary/85 px-4 py-2 text-sm text-text-secondary">
+              <Sparkles size={16} className="text-accent" />
+              Inbox для людей, стартапов и бизнес-аккаунтов
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-5">
+              Сообщения, которые ощущаются как рабочий центр контактов.
+            </h1>
+            <p className="text-text-secondary text-base md:text-lg leading-relaxed mt-3 max-w-2xl">
+              Здесь начинается всё, что нельзя закончить лайком: найм, партнёрство, интро, фидбэк по продукту и нормальный деловой диалог.
             </p>
           </div>
 
-          <div className="max-h-[calc(720px-73px)] overflow-y-auto">
-            {loadingConversations || bootstrapping ? (
-              <div className="p-6 text-center text-text-secondary">
-                <Loader2 size={22} className="animate-spin mx-auto mb-3 text-accent" />
-                Загружаем сообщения...
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 xl:min-w-[420px]">
+            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+                Диалоги
+              </p>
+              <p className="text-2xl font-black mt-2">{conversations.length}</p>
+              <p className="text-sm text-text-secondary mt-1">
+                Активных {getDialogLabel(conversations.length)}
+              </p>
+            </div>
+            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+                Непрочитано
+              </p>
+              <p className="text-2xl font-black mt-2">{totalUnread}</p>
+              <p className="text-sm text-text-secondary mt-1">
+                Сообщений ждут ответа
+              </p>
+            </div>
+            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4 col-span-2 md:col-span-1">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+                Сейчас открыт
+              </p>
+              <p className="text-base font-bold mt-2 truncate">
+                {selectedPartner?.name || "Никто не выбран"}
+              </p>
+              <p className="text-sm text-text-secondary mt-1 truncate">
+                {selectedPartner ? getPartnerSubtitle(selectedPartner) : "Выберите диалог слева"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="hidden lg:grid lg:grid-cols-[360px_minmax(0,1fr)] gap-5">
+        <aside className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/88 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.08),transparent_34%)] pointer-events-none" />
+          <div className="relative px-5 py-5 border-b border-border">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xl font-black">Диалоги</p>
+                <p className="text-sm text-text-secondary mt-1">
+                  {loadingConversations
+                    ? "Собираем переписки..."
+                    : `${conversations.length} ${getDialogLabel(conversations.length)}`}
+                </p>
               </div>
+              {totalUnread > 0 && (
+                <span className="rounded-full bg-accent/12 text-accent text-xs font-bold px-3 py-1.5">
+                  {totalUnread} новых
+                </span>
+              )}
+            </div>
+
+            <label className="relative block">
+              <Search
+                size={17}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Поиск по людям и сообщениям"
+                className="w-full h-12 rounded-[18px] border border-border bg-bg-primary/75 pl-11 pr-4 text-sm outline-none transition-all focus:border-accent/30 focus:bg-bg-primary"
+              />
+            </label>
+          </div>
+
+          <div className="relative p-2 max-h-[760px] overflow-y-auto">
+            {loadingConversations || bootstrapping ? (
+              <ConversationSkeleton />
             ) : conversations.length === 0 ? (
-              <div className="p-6 text-center text-text-secondary">
+              <div className="p-8 text-center text-text-secondary">
                 <MessageSquare size={28} className="mx-auto mb-3 opacity-40" />
                 Пока нет диалогов. Открой чей-то профиль и нажми «Написать».
               </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-8 text-center text-text-secondary">
+                <Search size={28} className="mx-auto mb-3 opacity-40" />
+                По этому запросу ничего не найдено.
+              </div>
             ) : (
-              conversations.map((conversation) => {
-                const partner = conversation.partner;
-
-                return (
-                  <button
+              <div className="space-y-1.5">
+                {filteredConversations.map((conversation) => (
+                  <ConversationListItem
                     key={conversation.id}
-                    type="button"
+                    conversation={conversation}
+                    isActive={conversation.id === activeConversationId}
                     onClick={() => setActiveConversationId(conversation.id)}
-                    className={cn(
-                      "w-full px-4 py-3 border-b border-border text-left transition-all",
-                      conversation.id === activeConversationId
-                        ? "bg-accent/8"
-                        : "hover:bg-bg-hover"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar
-                        name={partner?.name || "?"}
-                        size={44}
-                        src={partner?.avatar_url || null}
-                        isCompany={partner?.account_type === "business"}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-semibold truncate">
-                            {partner?.name || "Диалог"}
-                          </p>
-                          <span className="text-[11px] text-text-tertiary flex-shrink-0">
-                            {timeAgo(conversation.last_message_at)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-secondary truncate mt-1">
-                          {partner?.role || partner?.company || "ConnectHub"}
-                        </p>
-                        <p className="text-sm text-text-secondary truncate mt-2">
-                          {conversation.last_message_text || "Диалог открыт. Можно написать первым."}
-                        </p>
-                      </div>
-                      {(conversation.unread_count || 0) > 0 && (
-                        <span className="min-w-[20px] h-5 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center px-1.5">
-                          {conversation.unread_count}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })
+                  />
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        </aside>
 
-        <div className="card overflow-hidden flex flex-col">
-          {selectedConversation && selectedPartner ? (
-            <>
-              <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Avatar
-                    name={selectedPartner.name}
-                    size={44}
-                    src={selectedPartner.avatar_url}
-                    isCompany={selectedPartner.account_type === "business"}
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{selectedPartner.name}</p>
-                    <p className="text-sm text-text-secondary truncate">
-                      {selectedPartner.role ||
-                        selectedPartner.company ||
-                        (selectedPartner.account_type === "business"
-                          ? "Бизнес-аккаунт"
-                          : "Пользователь")}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href={`/profile/${selectedPartner.id}`}
-                  className="btn-ghost text-sm"
-                >
-                  Профиль
-                </Link>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-bg-primary/35">
-                {loadingMessages ? (
-                  <div className="h-full flex items-center justify-center text-text-secondary">
-                    <Loader2 size={22} className="animate-spin text-accent" />
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-text-secondary">
-                    <MessageSquare size={28} className="mb-3 opacity-40" />
-                    Начните разговор. Первое сообщение часто запускает полезный контакт.
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isMine = message.sender_id === user.id;
-
-                    return (
-                      <div
-                        key={message.id}
-                        className={cn(
-                          "flex",
-                          isMine ? "justify-end" : "justify-start"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "max-w-[78%] rounded-[22px] px-4 py-3 shadow-sm",
-                            isMine
-                              ? "bg-accent text-white rounded-br-md"
-                              : "bg-bg-secondary border border-border rounded-bl-md"
-                          )}
-                        >
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                            {message.content}
-                          </p>
-                          <p
-                            className={cn(
-                              "text-[11px] mt-2",
-                              isMine ? "text-white/70" : "text-text-tertiary"
-                            )}
-                          >
-                            {timeAgo(message.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={bottomRef} />
-              </div>
-
-              <div className="p-4 border-t border-border">
-                <div className="flex items-end gap-3">
-                  <textarea
-                    rows={1}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    placeholder="Напишите сообщение..."
-                    className="input-field !h-auto min-h-[48px] max-h-36 py-3 resize-none"
-                  />
-                  <button
-                    type="button"
-                    className="btn-primary h-12 px-4"
-                    onClick={handleSend}
-                    disabled={!draft.trim() || sending}
-                  >
-                    {sending ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center px-8 text-text-secondary">
-              <MessageSquare size={34} className="mb-4 opacity-40" />
-              Выберите диалог слева или начните его из чужого профиля.
-            </div>
-          )}
-        </div>
+        <ThreadPane
+          selectedConversation={selectedConversation}
+          selectedPartner={selectedPartner}
+          messages={messages}
+          loadingMessages={loadingMessages}
+          currentUserId={user.id}
+          draft={draft}
+          setDraft={setDraft}
+          handleSend={handleSend}
+          sending={sending}
+          bottomRef={bottomRef}
+        />
       </div>
 
-      <div className="lg:hidden">
-        {showMobileThread && selectedConversation && selectedPartner ? (
-          <div className="card overflow-hidden min-h-[70vh] flex flex-col">
-            <div className="px-4 py-3 border-b border-border flex items-center gap-3">
-              <button
-                type="button"
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all"
-                onClick={() => setActiveConversationId(null)}
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <Avatar
-                name={selectedPartner.name}
-                size={40}
-                src={selectedPartner.avatar_url}
-                isCompany={selectedPartner.account_type === "business"}
-              />
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{selectedPartner.name}</p>
-                <p className="text-xs text-text-secondary truncate">
-                  {selectedPartner.role ||
-                    selectedPartner.company ||
-                    (selectedPartner.account_type === "business"
-                      ? "Бизнес-аккаунт"
-                      : "Пользователь")}
-                </p>
-              </div>
+      <div className="lg:hidden space-y-4">
+        {showMobileThread ? (
+          <ThreadPane
+            selectedConversation={selectedConversation}
+            selectedPartner={selectedPartner}
+            messages={messages}
+            loadingMessages={loadingMessages}
+            currentUserId={user.id}
+            draft={draft}
+            setDraft={setDraft}
+            handleSend={handleSend}
+            sending={sending}
+            bottomRef={bottomRef}
+            mobile
+            onBack={() => setActiveConversationId(null)}
+          />
+        ) : (
+          <div className="relative overflow-hidden rounded-[28px] border border-border bg-bg-secondary/88 shadow-[0_18px_70px_rgba(15,23,42,0.06)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.08),transparent_34%)] pointer-events-none" />
+            <div className="relative px-4 py-4 border-b border-border">
+              <p className="text-xl font-black">Диалоги</p>
+              <p className="text-sm text-text-secondary mt-1">
+                {loadingConversations
+                  ? "Собираем переписки..."
+                  : `${conversations.length} ${getDialogLabel(conversations.length)}`}
+              </p>
+              <label className="relative block mt-4">
+                <Search
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary"
+                />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Поиск по диалогам"
+                  className="w-full h-12 rounded-[18px] border border-border bg-bg-primary/75 pl-11 pr-4 text-sm outline-none transition-all focus:border-accent/30 focus:bg-bg-primary"
+                />
+              </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg-primary/35">
-              {loadingMessages ? (
-                <div className="h-full flex items-center justify-center text-text-secondary">
-                  <Loader2 size={22} className="animate-spin text-accent" />
+            <div className="relative p-2">
+              {loadingConversations || bootstrapping ? (
+                <ConversationSkeleton />
+              ) : conversations.length === 0 ? (
+                <div className="p-8 text-center text-text-secondary">
+                  <MessageSquare size={28} className="mx-auto mb-3 opacity-40" />
+                  Пока нет диалогов. Зайди в чей-то профиль и начни переписку.
                 </div>
-              ) : messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-text-secondary">
-                  <MessageSquare size={28} className="mb-3 opacity-40" />
-                  Начните разговор первым сообщением.
+              ) : filteredConversations.length === 0 ? (
+                <div className="p-8 text-center text-text-secondary">
+                  <Search size={28} className="mx-auto mb-3 opacity-40" />
+                  По этому запросу ничего не найдено.
                 </div>
               ) : (
-                messages.map((message) => {
-                  const isMine = message.sender_id === user.id;
-
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn("flex", isMine ? "justify-end" : "justify-start")}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[82%] rounded-[22px] px-4 py-3 shadow-sm",
-                          isMine
-                            ? "bg-accent text-white rounded-br-md"
-                            : "bg-bg-secondary border border-border rounded-bl-md"
-                        )}
-                      >
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                          {message.content}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[11px] mt-2",
-                            isMine ? "text-white/70" : "text-text-tertiary"
-                          )}
-                        >
-                          {timeAgo(message.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
+                <div className="space-y-1.5">
+                  {filteredConversations.map((conversation) => (
+                    <ConversationListItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={conversation.id === activeConversationId}
+                      onClick={() => setActiveConversationId(conversation.id)}
+                    />
+                  ))}
+                </div>
               )}
-              <div ref={bottomRef} />
             </div>
-
-            <div className="p-4 border-t border-border">
-              <div className="flex items-end gap-3">
-                <textarea
-                  rows={1}
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Напишите сообщение..."
-                  className="input-field !h-auto min-h-[48px] max-h-32 py-3 resize-none"
-                />
-                <button
-                  type="button"
-                  className="btn-primary h-12 px-4"
-                  onClick={handleSend}
-                  disabled={!draft.trim() || sending}
-                >
-                  {sending ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Send size={16} />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="card overflow-hidden">
-            {loadingConversations || bootstrapping ? (
-              <div className="p-10 text-center text-text-secondary">
-                <Loader2 size={22} className="animate-spin mx-auto mb-3 text-accent" />
-                Загружаем диалоги...
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-10 text-center text-text-secondary">
-                <MessageSquare size={28} className="mx-auto mb-3 opacity-40" />
-                Пока нет диалогов. Зайди в чей-то профиль и начни переписку.
-              </div>
-            ) : (
-              conversations.map((conversation) => {
-                const partner = conversation.partner;
-
-                return (
-                  <button
-                    key={conversation.id}
-                    type="button"
-                    onClick={() => setActiveConversationId(conversation.id)}
-                    className="w-full px-4 py-3 border-b border-border text-left hover:bg-bg-hover transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar
-                        name={partner?.name || "?"}
-                        size={44}
-                        src={partner?.avatar_url || null}
-                        isCompany={partner?.account_type === "business"}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-semibold truncate">
-                            {partner?.name || "Диалог"}
-                          </p>
-                          <span className="text-[11px] text-text-tertiary">
-                            {timeAgo(conversation.last_message_at)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-secondary truncate mt-1">
-                          {partner?.role || partner?.company || "ConnectHub"}
-                        </p>
-                        <p className="text-sm text-text-secondary truncate mt-2">
-                          {conversation.last_message_text || "Диалог открыт. Можно написать первым."}
-                        </p>
-                      </div>
-                      {(conversation.unread_count || 0) > 0 && (
-                        <span className="min-w-[20px] h-5 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center px-1.5">
-                          {conversation.unread_count}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })
-            )}
           </div>
         )}
       </div>
