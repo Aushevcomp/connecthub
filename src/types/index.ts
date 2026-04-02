@@ -110,3 +110,28 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+export interface Conversation {
+  id: string;
+  participant_one_id: string;
+  participant_two_id: string;
+  pair_key: string;
+  last_message_text: string | null;
+  last_message_sender_id: string | null;
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+  partner?: Profile;
+  unread_count?: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+}

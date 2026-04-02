@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import type { Profile } from "@/types";
 
+type AuthModalMode = "login" | "register";
+
 interface AppState {
   user: Profile | null;
   setUser: (user: Profile | null) => void;
 
   authModalOpen: boolean;
-  openAuthModal: () => void;
+  authModalMode: AuthModalMode;
+  openAuthModal: (mode?: AuthModalMode) => void;
   closeAuthModal: () => void;
 
   feedTab: "all" | "companies" | "people" | "polls";
@@ -23,8 +26,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   authModalOpen: false,
-  openAuthModal: () => set({ authModalOpen: true }),
-  closeAuthModal: () => set({ authModalOpen: false }),
+  authModalMode: "login",
+  openAuthModal: (authModalMode = "login") => set({ authModalOpen: true, authModalMode }),
+  closeAuthModal: () => set({ authModalOpen: false, authModalMode: "login" }),
 
   feedTab: "all",
   setFeedTab: (feedTab) => set({ feedTab }),

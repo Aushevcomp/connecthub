@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Script from "next/script";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -18,8 +20,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru">
-      <body>{children}</body>
+    <html lang="ru" suppressHydrationWarning>
+      <body>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`
+            try {
+              var storedTheme = localStorage.getItem("connecthub-theme");
+              var theme = storedTheme === "light" || storedTheme === "dark"
+                ? storedTheme
+                : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+              document.documentElement.dataset.theme = theme;
+              document.documentElement.style.colorScheme = theme;
+            } catch (error) {
+              document.documentElement.dataset.theme = "dark";
+              document.documentElement.style.colorScheme = "dark";
+            }
+          `}
+        </Script>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

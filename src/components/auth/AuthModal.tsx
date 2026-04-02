@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/lib/store";
 import type { AccountType } from "@/types";
 
 export function AuthModal() {
-  const { authModalOpen, closeAuthModal } = useAppStore();
+  const { authModalOpen, authModalMode, closeAuthModal } = useAppStore();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [accountType, setAccountType] = useState<AccountType>("user");
   const [form, setForm] = useState({ name: "", email: "", password: "", company: "" });
@@ -15,6 +15,13 @@ export function AuthModal() {
   const [error, setError] = useState("");
 
   const supabase = createClient();
+
+  useEffect(() => {
+    if (!authModalOpen) return;
+
+    setMode(authModalMode);
+    setError("");
+  }, [authModalMode, authModalOpen]);
 
   if (!authModalOpen) return null;
 

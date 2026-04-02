@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail, Shield, Trash2, Eye, EyeOff, Loader2, Check, AlertTriangle, Settings } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/lib/store";
@@ -48,7 +49,7 @@ export function SettingsPage() {
       <div className="text-center py-16">
         <div className="text-5xl mb-3 opacity-30">⚙️</div>
         <p className="text-text-secondary mb-4">Войдите, чтобы открыть настройки</p>
-        <button className="btn-primary" onClick={openAuthModal}>Войти</button>
+        <button className="btn-primary" onClick={() => openAuthModal("login")}>Войти</button>
       </div>
     );
   }
@@ -146,6 +147,10 @@ export function SettingsPage() {
       <div className="flex items-center gap-3 mb-6">
         <Settings size={24} className="text-text-secondary" />
         <h2 className="text-xl font-extrabold">Настройки</h2>
+      </div>
+
+      <div className="mb-6">
+        <ThemeToggle variant="full" />
       </div>
 
       <div className="flex gap-1 bg-bg-card border border-border rounded-card p-1 mb-6">

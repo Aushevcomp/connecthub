@@ -4,6 +4,49 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: 10 10 15;
+  --bg-secondary: 18 18 26;
+  --bg-tertiary: 26 26 38;
+  --bg-card: 20 20 30;
+  --bg-hover: 30 30 46;
+  --border: 255, 255, 255, 0.04;
+  --border-hover: 255, 255, 255, 0.08;
+  --border-focus: 99 102 241;
+  --accent: 99 102 241;
+  --accent-hover: 129 140 248;
+  --accent-soft: 99, 102, 241, 0.08;
+  --accent2: 6 214 160;
+  --accent2-soft: 6, 214, 160, 0.08;
+  --text-primary: 240 240 245;
+  --text-secondary: 136 136 160;
+  --text-tertiary: 85 85 106;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: 246 247 251;
+  --bg-secondary: 255 255 255;
+  --bg-tertiary: 234 237 245;
+  --bg-card: 255 255 255;
+  --bg-hover: 241 244 250;
+  --border: 15, 23, 42, 0.08;
+  --border-hover: 15, 23, 42, 0.14;
+  --border-focus: 99 102 241;
+  --accent: 79 70 229;
+  --accent-hover: 99 102 241;
+  --accent-soft: 79, 70, 229, 0.10;
+  --accent2: 5 150 105;
+  --accent2-soft: 5, 150, 105, 0.10;
+  --text-primary: 18 24 38;
+  --text-secondary: 77 89 111;
+  --text-tertiary: 125 136 160;
+}
+
 @layer base {
   * {
     margin: 0;
@@ -13,6 +56,7 @@
 
   body {
     @apply bg-bg-primary text-text-primary font-sans antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   ::selection {
@@ -45,7 +89,7 @@
   }
 
   .card-hover:hover {
-    @apply border-white/[0.06];
+    @apply border-border-hover;
   }
 
   .btn-primary {

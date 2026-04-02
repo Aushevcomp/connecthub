@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, Plus, Bell, Settings } from "lucide-react";
+import { Home, Briefcase, Bell, Settings, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export function MobileNav() {
   const items = [
     { href: "/", label: "Лента", icon: Home },
     { href: "/jobs", label: "Работа", icon: Briefcase },
-    { href: "#", label: "Создать", icon: Plus, special: true },
+    { href: "/messages", label: "Чаты", icon: MessageSquare, requiresAuth: true },
     { href: "/notifications", label: "Алерты", icon: Bell },
     { href: "/settings", label: "Настройки", icon: Settings, requiresAuth: true },
   ];
@@ -23,21 +23,6 @@ export function MobileNav() {
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
-
-        if (item.special) {
-          return (
-            <button
-              key={item.label}
-              onClick={() => !isAuthenticated && openAuthModal()}
-              className="flex flex-col items-center"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
-                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
-                <Icon size={20} />
-              </div>
-            </button>
-          );
-        }
 
         return (
           <Link

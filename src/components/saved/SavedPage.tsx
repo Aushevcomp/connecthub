@@ -63,7 +63,7 @@ export function SavedPage() {
         <p className="text-sm text-text-secondary mb-5">
           Войдите, чтобы собирать посты в личную подборку и возвращаться к ним позже.
         </p>
-        <button className="btn-primary mx-auto" onClick={openAuthModal}>
+        <button className="btn-primary mx-auto" onClick={() => openAuthModal("login")}>
           Войти
         </button>
       </div>

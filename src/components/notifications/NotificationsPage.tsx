@@ -170,7 +170,7 @@ export function NotificationsPage() {
                 key={n.id}
                 className={cn(
                   "group card card-hover p-4 flex items-center gap-3 transition-all cursor-pointer",
-                  !n.is_read && "border-accent/20 bg-accent-soft/5"
+                  !n.is_read && "border-accent/20 bg-accent/5"
                 )}
                 onClick={() => { markAsRead(n.id); if (n.link) window.location.href = n.link; }}
               >

@@ -11,7 +11,7 @@ import { enrichPosts } from "@/lib/posts";
 import { syncProfileFollowCounts } from "@/lib/social";
 import { timeAgo, formatNumber } from "@/lib/utils";
 import { sendNotification } from "@/lib/notifications";
-import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2, Mail } from "lucide-react";
+import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2, Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import type { Profile, Post } from "@/types";
 
@@ -204,19 +204,34 @@ function UserProfileContent() {
             {isOwnProfile ? (
               <Link href="/profile" className="btn-ghost text-sm">Редактировать</Link>
             ) : (
-              <button
-                className={isFollowing ? "btn-ghost text-sm" : "btn-primary text-sm"}
-                onClick={handleFollow}
-                disabled={followLoading}
-              >
-                {followLoading ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : isFollowing ? (
-                  <><UserMinus size={14} /> Отписаться</>
+              <>
+                {currentUser ? (
+                  <Link href={`/messages?user=${profile.id}`} className="btn-ghost text-sm">
+                    <MessageSquare size={14} /> Написать
+                  </Link>
                 ) : (
-                  <><UserPlus size={14} /> Подписаться</>
+                  <button
+                    type="button"
+                    className="btn-ghost text-sm"
+                    onClick={() => openAuthModal("login")}
+                  >
+                    <MessageSquare size={14} /> Написать
+                  </button>
                 )}
-              </button>
+                <button
+                  className={isFollowing ? "btn-ghost text-sm" : "btn-primary text-sm"}
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                >
+                  {followLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : isFollowing ? (
+                    <><UserMinus size={14} /> Отписаться</>
+                  ) : (
+                    <><UserPlus size={14} /> Подписаться</>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>

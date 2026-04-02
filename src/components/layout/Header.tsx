@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText, Bookmark } from "lucide-react";
+import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText, Bookmark, MessageSquare } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,73 @@ function NotificationBell() {
       className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative",
         pathname === "/notifications" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}>
       <Bell size={20} />
+      {unreadCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-bg-primary">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function MessagesButton() {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const supabase = createClient();
+    const userId = user.id;
+
+    async function fetchCount() {
+      const { count } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", userId)
+        .eq("is_read", false);
+
+      setUnreadCount(count || 0);
+    }
+
+    fetchCount();
+
+    const channel = supabase
+      .channel("messages-button")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        () => {
+          fetchCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Link
+      href="/messages"
+      className={cn(
+        "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative",
+        pathname === "/messages"
+          ? "text-accent bg-accent-soft"
+          : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+      )}
+    >
+      <MessageSquare size={20} />
       {unreadCount > 0 && (
         <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-bg-primary">
           {unreadCount > 9 ? "9+" : unreadCount}
@@ -226,6 +294,7 @@ export function Header() {
 
       {/* Actions */}
       <div className="flex items-center gap-1.5">
+        <ThemeToggle />
         <Link href="/" className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
           pathname === "/" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}><Home size={20} /></Link>
         <Link href="/jobs" className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
@@ -238,10 +307,21 @@ export function Header() {
         ) : (
           <button
             className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all duration-200"
-            onClick={openAuthModal}
+            onClick={() => openAuthModal("login")}
             title="Сохранённое"
           >
             <Bookmark size={20} />
+          </button>
+        )}
+        {isAuthenticated ? (
+          <MessagesButton />
+        ) : (
+          <button
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all duration-200"
+            onClick={() => openAuthModal("login")}
+            title="Сообщения"
+          >
+            <MessageSquare size={20} />
           </button>
         )}
         <NotificationBell />
@@ -256,7 +336,7 @@ export function Header() {
             </button>
           </div>
         ) : (
-          <button className="btn-primary text-sm ml-2" onClick={openAuthModal}>Войти</button>
+          <button className="btn-primary text-sm ml-2" onClick={() => openAuthModal("login")}>Войти</button>
         )}
       </div>
     </header>

@@ -177,7 +177,7 @@ export function PostComposer({ onPostCreated }: PostComposerProps) {
 
       {/* Poll Builder */}
       {showPoll && (
-        <div className="mt-3 p-4 rounded-xl border border-accent/30 bg-accent-soft/30">
+        <div className="mt-3 p-4 rounded-xl border border-accent/30 bg-accent/10">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-accent">Создать опрос</p>
             <button onClick={togglePoll} className="text-text-tertiary hover:text-red-400 transition-colors">

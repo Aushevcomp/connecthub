@@ -361,7 +361,7 @@ export function ProfilePage() {
       <div className="text-center py-16">
         <div className="text-5xl mb-3 opacity-30">👤</div>
         <p className="text-text-secondary mb-4">Войдите, чтобы увидеть свой профиль</p>
-        <button className="btn-primary" onClick={openAuthModal}>Войти</button>
+        <button className="btn-primary" onClick={() => openAuthModal("login")}>Войти</button>
       </div>
     );
   }

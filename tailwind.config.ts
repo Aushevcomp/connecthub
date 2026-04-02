@@ -6,29 +6,30 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          primary: "#0a0a0f",
-          secondary: "#12121a",
-          tertiary: "#1a1a26",
-          card: "#14141e",
-          hover: "#1e1e2e",
+          primary: "rgb(var(--bg-primary) / <alpha-value>)",
+          secondary: "rgb(var(--bg-secondary) / <alpha-value>)",
+          tertiary: "rgb(var(--bg-tertiary) / <alpha-value>)",
+          card: "rgb(var(--bg-card) / <alpha-value>)",
+          hover: "rgb(var(--bg-hover) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "rgba(255,255,255,0.04)",
-          focus: "#6366f1",
+          DEFAULT: "rgba(var(--border))",
+          focus: "rgb(var(--border-focus) / <alpha-value>)",
+          hover: "rgba(var(--border-hover))",
         },
         accent: {
-          DEFAULT: "#6366f1",
-          hover: "#818cf8",
-          soft: "rgba(99,102,241,0.08)",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
+          soft: "rgba(var(--accent-soft))",
         },
         accent2: {
-          DEFAULT: "#06d6a0",
-          soft: "rgba(6,214,160,0.08)",
+          DEFAULT: "rgb(var(--accent2) / <alpha-value>)",
+          soft: "rgba(var(--accent2-soft))",
         },
         text: {
-          primary: "#f0f0f5",
-          secondary: "#8888a0",
-          tertiary: "#55556a",
+          primary: "rgb(var(--text-primary) / <alpha-value>)",
+          secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+          tertiary: "rgb(var(--text-tertiary) / <alpha-value>)",
         },
       },
       fontFamily: {
