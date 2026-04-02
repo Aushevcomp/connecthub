@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, DollarSign, Clock, Flame } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, DollarSign, Clock, Flame, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { timeAgo } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
+import { syncJobApplicantsCount } from "@/lib/social";
 import type { Job } from "@/types";
 
 interface JobCardProps {
@@ -13,19 +15,64 @@ interface JobCardProps {
 
 export function JobCard({ job }: JobCardProps) {
   const [applied, setApplied] = useState(job.user_applied || false);
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const [applicantsCount, setApplicantsCount] = useState(job.applicants_count);
+  const [loading, setLoading] = useState(false);
+  const { user, isAuthenticated, openAuthModal } = useAuth();
 
-  const handleApply = () => {
-    if (!isAuthenticated) {
+  useEffect(() => {
+    setApplied(job.user_applied || false);
+    setApplicantsCount(job.applicants_count);
+  }, [job.user_applied, job.applicants_count]);
+
+  const handleApply = async () => {
+    if (!isAuthenticated || !user) {
       openAuthModal();
       return;
     }
-    setApplied(!applied);
+
+    if (loading || user.id === job.company_id) return;
+
+    setLoading(true);
+    const nextApplied = !applied;
+    setApplied(nextApplied);
+
+    try {
+      const supabase = createClient();
+
+      if (nextApplied) {
+        const { error } = await supabase.from("job_applications").insert({
+          job_id: job.id,
+          user_id: user.id,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("job_applications")
+          .delete()
+          .eq("job_id", job.id)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      }
+
+      const nextApplicantsCount = await syncJobApplicantsCount(supabase, job.id);
+      setApplicantsCount(nextApplicantsCount);
+    } catch (err) {
+      console.error("Job application error:", err);
+      setApplied(!nextApplied);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const salaryStr = job.salary_min && job.salary_max
     ? `${job.salary_min.toLocaleString()} – ${job.salary_max.toLocaleString()} ${job.salary_currency}`
-    : "По договорённости";
+    : job.salary_min
+      ? `от ${job.salary_min.toLocaleString()} ${job.salary_currency}`
+      : job.salary_max
+        ? `до ${job.salary_max.toLocaleString()} ${job.salary_currency}`
+        : "По договорённости";
+
+  const isOwnJob = user?.id === job.company_id;
 
   return (
     <article className="card card-hover p-5 mb-3 cursor-pointer animate-fade-in-up hover:-translate-y-0.5 hover:border-accent hover:shadow-lg transition-all duration-200">
@@ -56,13 +103,22 @@ export function JobCard({ job }: JobCardProps) {
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-text-tertiary">
-          {job.applicants_count} откликов · {timeAgo(job.created_at)}
+          {applicantsCount} откликов · {timeAgo(job.created_at)}
         </span>
         <button
-          className={applied ? "btn-ghost text-sm" : "btn-primary text-sm"}
+          className={applied || isOwnJob ? "btn-ghost text-sm" : "btn-primary text-sm"}
           onClick={handleApply}
+          disabled={loading || isOwnJob}
         >
-          {applied ? "✓ Отклик отправлен" : "Откликнуться"}
+          {loading ? (
+            <><Loader2 size={14} className="animate-spin" /> Обработка...</>
+          ) : isOwnJob ? (
+            "Ваша вакансия"
+          ) : applied ? (
+            "✓ Отклик отправлен"
+          ) : (
+            "Откликнуться"
+          )}
         </button>
       </div>
     </article>

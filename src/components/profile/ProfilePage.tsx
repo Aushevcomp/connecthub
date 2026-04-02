@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/ui/Avatar";
 import { createClient } from "@/lib/supabase/client";
+import { enrichPosts } from "@/lib/posts";
 import { useAppStore } from "@/lib/store";
 import { timeAgo } from "@/lib/utils";
 import {
@@ -344,7 +345,8 @@ export function ProfilePage() {
       .eq("author_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20);
-    setMyPosts((data || []) as Post[]);
+    const enriched = await enrichPosts(supabase, (data || []) as Post[], user.id);
+    setMyPosts(enriched);
     setLoadingPosts(false);
   };
 

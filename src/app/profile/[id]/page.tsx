@@ -7,9 +7,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { PostCard } from "@/components/feed/PostCard";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { enrichPosts } from "@/lib/posts";
+import { syncProfileFollowCounts } from "@/lib/social";
 import { timeAgo, formatNumber } from "@/lib/utils";
 import { sendNotification } from "@/lib/notifications";
-import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2 } from "lucide-react";
+import { MapPin, Users, Link as LinkIcon, Calendar, Loader2, ArrowLeft, UserPlus, UserMinus, Building2, Mail } from "lucide-react";
 import Link from "next/link";
 import type { Profile, Post } from "@/types";
 
@@ -65,28 +67,11 @@ function UserProfileContent() {
         .eq("author_id", profileId)
         .order("created_at", { ascending: false })
         .limit(20);
-
-      let postsList = (postsData || []) as Post[];
-
-      if (postsList.length > 0) {
-        const postIds = postsList.map((p) => p.id);
-
-        // Polls
-        const { data: pollsData } = await supabase
-          .from("polls")
-          .select("*, options:poll_options(*)")
-          .in("post_id", postIds);
-        const pollMap = new Map();
-        (pollsData || []).forEach((poll: any) => pollMap.set(poll.post_id, poll));
-        postsList = postsList.map((p) => ({ ...p, poll: pollMap.get(p.id) || undefined }));
-
-        // Likes
-        if (authUser) {
-          const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", postIds);
-          const likedSet = new Set((likes || []).map((l: any) => l.post_id));
-          postsList = postsList.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
-        }
-      }
+      const postsList = await enrichPosts(
+        supabase,
+        (postsData || []) as Post[],
+        authUser?.id
+      );
 
       setPosts(postsList);
       setPostsLoading(false);
@@ -102,14 +87,18 @@ function UserProfileContent() {
       const supabase = createClient();
       if (isFollowing) {
         await supabase.from("follows").delete().eq("follower_id", currentUser.id).eq("following_id", profileId);
-        setFollowersCount(Math.max(0, followersCount - 1));
-        await supabase.from("profiles").update({ followers_count: Math.max(0, followersCount - 1) }).eq("id", profileId);
+        const { followersCount: nextFollowersCount } = await syncProfileFollowCounts(supabase, profileId);
+        await syncProfileFollowCounts(supabase, currentUser.id);
+        setFollowersCount(nextFollowersCount);
+        setProfile((prev) => prev ? { ...prev, followers_count: nextFollowersCount } : prev);
         setIsFollowing(false);
       } else {
         await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: profileId });
         sendNotification({ userId: profileId, actorId: currentUser.id, type: "follow", message: "подписался(-ась) на вас", link: `/profile/${currentUser.id}` });
-        setFollowersCount(followersCount + 1);
-        await supabase.from("profiles").update({ followers_count: followersCount + 1 }).eq("id", profileId);
+        const { followersCount: nextFollowersCount } = await syncProfileFollowCounts(supabase, profileId);
+        await syncProfileFollowCounts(supabase, currentUser.id);
+        setFollowersCount(nextFollowersCount);
+        setProfile((prev) => prev ? { ...prev, followers_count: nextFollowersCount } : prev);
         setIsFollowing(true);
       }
     } catch (err) { console.error("Follow error:", err); }
@@ -136,6 +125,19 @@ function UserProfileContent() {
 
   const isOwnProfile = currentUser?.id === profile.id;
   const isCompany = profile.account_type === "business";
+  const isHidden = profile.profile_public === false && !isOwnProfile;
+
+  if (isHidden) {
+    return (
+      <div className="card p-10 text-center">
+        <div className="text-5xl mb-3 opacity-30">🔒</div>
+        <p className="font-semibold mb-1">Профиль скрыт</p>
+        <p className="text-sm text-text-secondary">
+          Пользователь ограничил публичный доступ к профилю.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in-up">
@@ -187,6 +189,11 @@ function UserProfileContent() {
                   className="flex items-center gap-1 hover:text-accent transition-colors">
                   <LinkIcon size={14} /> {profile.website.replace(/https?:\/\//, "")}
                 </a>
+              )}
+              {(profile.show_email || isOwnProfile) && (
+                <span className="flex items-center gap-1">
+                  <Mail size={14} /> {profile.email}
+                </span>
               )}
               <span className="flex items-center gap-1">
                 <Calendar size={14} /> {timeAgo(profile.created_at)}

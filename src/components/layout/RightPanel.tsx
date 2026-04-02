@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Flame, Users, Building2, Check } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { createClient } from "@/lib/supabase/client";
+import { syncProfileFollowCounts } from "@/lib/social";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNumber } from "@/lib/utils";
 import type { Profile } from "@/types";
@@ -49,6 +50,7 @@ export function RightPanel() {
         .from("profiles")
         .select("*")
         .eq("account_type", "user")
+        .eq("profile_public", true)
         .order("followers_count", { ascending: false })
         .limit(10);
 
@@ -66,6 +68,7 @@ export function RightPanel() {
         .from("profiles")
         .select("*")
         .eq("account_type", "business")
+        .eq("profile_public", true)
         .order("followers_count", { ascending: false })
         .limit(5);
 
@@ -104,11 +107,17 @@ export function RightPanel() {
 
       if (isFollowing) {
         await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", targetId);
-        await supabase.from("profiles").update({ followers_count: Math.max(0, (suggestedUsers.find(u => u.id === targetId)?.followers_count || topCompanies.find(c => c.id === targetId)?.followers_count || 1) - 1) }).eq("id", targetId);
+        const { followersCount } = await syncProfileFollowCounts(supabase, targetId);
+        await syncProfileFollowCounts(supabase, user.id);
+        setSuggestedUsers((prev) => prev.map((item) => item.id === targetId ? { ...item, followers_count: followersCount } : item));
+        setTopCompanies((prev) => prev.map((item) => item.id === targetId ? { ...item, followers_count: followersCount } : item));
         setFollowingSet((prev) => { const next = new Set(prev); next.delete(targetId); return next; });
       } else {
         await supabase.from("follows").insert({ follower_id: user.id, following_id: targetId });
-        await supabase.from("profiles").update({ followers_count: (suggestedUsers.find(u => u.id === targetId)?.followers_count || topCompanies.find(c => c.id === targetId)?.followers_count || 0) + 1 }).eq("id", targetId);
+        const { followersCount } = await syncProfileFollowCounts(supabase, targetId);
+        await syncProfileFollowCounts(supabase, user.id);
+        setSuggestedUsers((prev) => prev.map((item) => item.id === targetId ? { ...item, followers_count: followersCount } : item));
+        setTopCompanies((prev) => prev.map((item) => item.id === targetId ? { ...item, followers_count: followersCount } : item));
         setFollowingSet((prev) => new Set(prev).add(targetId));
       }
     } catch (err) { console.error("Follow error:", err); }

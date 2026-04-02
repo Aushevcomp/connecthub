@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail, Shield, Trash2, Eye, EyeOff, Loader2, Check, AlertTriangle, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
+import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 type SettingsTab = "account" | "privacy" | "danger";
@@ -17,6 +18,7 @@ const TABS: { key: SettingsTab; label: string; icon: any }[] = [
 
 export function SettingsPage() {
   const { user, signOut, openAuthModal } = useAuth();
+  const { setUser } = useAppStore();
   const router = useRouter();
   const [tab, setTab] = useState<SettingsTab>("account");
   const [newPassword, setNewPassword] = useState("");
@@ -33,6 +35,12 @@ export function SettingsPage() {
   const [privacySaved, setPrivacySaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setProfilePublic(user.profile_public);
+    setShowEmail(user.show_email);
+  }, [user]);
 
   if (!user) {
     return (
@@ -77,7 +85,22 @@ export function SettingsPage() {
     setPrivacyLoading(true);
     try {
       const supabase = createClient();
-      await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", user.id);
+      const updatedAt = new Date().toISOString();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          profile_public: profilePublic,
+          show_email: showEmail,
+          updated_at: updatedAt,
+        })
+        .eq("id", user.id);
+      if (error) throw error;
+      setUser({
+        ...user,
+        profile_public: profilePublic,
+        show_email: showEmail,
+        updated_at: updatedAt,
+      });
       setPrivacySaved(true);
       setTimeout(() => setPrivacySaved(false), 2000);
     } catch (err) { console.error(err); }

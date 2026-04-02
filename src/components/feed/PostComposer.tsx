@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useRef } from "react";
 import { Image as ImageIcon, BarChart3, Send, X, Loader2, Plus, Minus } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -159,7 +160,14 @@ export function PostComposer({ onPostCreated }: PostComposerProps) {
       {/* Image Preview */}
       {imagePreview && (
         <div className="relative mt-3 rounded-xl overflow-hidden border border-border">
-          <img src={imagePreview} alt="Preview" className="w-full max-h-[300px] object-cover" />
+          <Image
+            src={imagePreview}
+            alt="Preview"
+            width={1200}
+            height={800}
+            unoptimized
+            className="w-full max-h-[300px] object-cover"
+          />
           <button onClick={removeImage}
             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-all">
             <X size={16} />

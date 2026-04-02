@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Shield, Users, FileText, Briefcase, TrendingUp,
   CheckCircle, XCircle, Ban, Trash2, Search,
-  Eye, AlertTriangle, BadgeCheck, ArrowLeft
+  AlertTriangle, BadgeCheck, ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";

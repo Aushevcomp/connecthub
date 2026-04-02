@@ -64,7 +64,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
 1. В Supabase Dashboard → **SQL Editor**
 2. Скопируй и выполни `scripts/schema.sql`
-3. Затем выполни `scripts/seed.sql` (демо-данные)
+3. Если база уже была создана на старой версии проекта, сначала выполни `scripts/migrate-2026-04.sql`
+4. Затем выполни `scripts/seed.sql` (демо-данные)
 
 ### 5. Запусти локально
 
@@ -73,6 +74,13 @@ npm run dev
 ```
 
 Открой [http://localhost:3000](http://localhost:3000)
+
+Дополнительные проверки:
+
+```bash
+npm run lint
+npm run typecheck
+```
 
 ---
 

@@ -22,6 +22,8 @@ export interface Profile {
   is_banned: boolean;
   banned_at: string | null;
   banned_reason: string | null;
+  profile_public: boolean;
+  show_email: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +32,7 @@ export interface Post {
   id: string;
   author_id: string;
   content: string;
+  image_url?: string | null;
   tags: string[];
   likes_count: number;
   comments_count: number;
@@ -100,6 +103,7 @@ export interface Comment {
 export interface Notification {
   id: string;
   user_id: string;
+  actor_id: string | null;
   type: "like" | "comment" | "follow" | "job_match" | "mention";
   message: string;
   link: string | null;

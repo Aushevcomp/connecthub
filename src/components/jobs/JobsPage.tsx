@@ -118,7 +118,7 @@ function CreateJobModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onClo
 
 // ─── Jobs Page ───
 export function JobsPage() {
-  const { user, isAuthenticated, openAuthModal } = useAuth();
+  const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -132,12 +132,28 @@ export function JobsPage() {
         .select("*, company:profiles!jobs_company_id_fkey(*)")
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      setJobs((data || []) as Job[]);
+      const baseJobs = (data || []) as Job[];
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (authUser && baseJobs.length > 0) {
+        const jobIds = baseJobs.map((job) => job.id);
+        const { data: applications } = await supabase
+          .from("job_applications")
+          .select("job_id")
+          .eq("user_id", authUser.id)
+          .in("job_id", jobIds);
+
+        const appliedSet = new Set((applications || []).map((application: { job_id: string }) => application.job_id));
+        setJobs(baseJobs.map((job) => ({ ...job, user_applied: appliedSet.has(job.id) })));
+        return;
+      }
+
+      setJobs(baseJobs);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => { fetchJobs(); }, [user?.id]);
 
   const filtered = jobs.filter((j) => {
     if (!filter) return true;

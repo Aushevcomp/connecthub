@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { getInitials, getAvatarColor } from "@/lib/utils";
 
 interface AvatarProps {
@@ -28,9 +29,12 @@ export function Avatar({ name, size = 40, src, isCompany, className = "" }: Avat
       }}
     >
       {src ? (
-        <img
+        <Image
           src={src}
           alt={name}
+          width={size}
+          height={size}
+          unoptimized
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (

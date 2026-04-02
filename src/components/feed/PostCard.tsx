@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark, Eye, Check, Send, Loader2, ChevronDown, ChevronUp, Trash2, MoreHorizontal } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -74,7 +75,17 @@ function CommentItem({ comment }: { comment: Comment }) {
 }
 
 // ─── Comments Section ───
-function CommentsSection({ postId, commentsCount, postAuthorId }: { postId: string; commentsCount: number; postAuthorId: string }) {
+function CommentsSection({
+  postId,
+  commentsCount,
+  postAuthorId,
+  onCountChange,
+}: {
+  postId: string;
+  commentsCount: number;
+  postAuthorId: string;
+  onCountChange?: (count: number) => void;
+}) {
   const { user, openAuthModal } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -82,6 +93,10 @@ function CommentsSection({ postId, commentsCount, postAuthorId }: { postId: stri
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   const [totalCount, setTotalCount] = useState(commentsCount);
+
+  useEffect(() => {
+    setTotalCount(commentsCount);
+  }, [commentsCount]);
 
   const fetchComments = async () => {
     if (expanded && comments.length > 0) { setExpanded(false); return; }
@@ -107,8 +122,14 @@ function CommentsSection({ postId, commentsCount, postAuthorId }: { postId: stri
         post_id: postId, author_id: user.id, content: newComment.trim(), likes_count: 0,
       }).select("*, author:profiles!comments_author_id_fkey(*)").single();
       if (error) throw error;
-      if (data) { setComments([...comments, data as Comment]); setTotalCount(totalCount + 1); setExpanded(true); }
-      await supabase.from("posts").update({ comments_count: totalCount + 1 }).eq("id", postId);
+      const nextCount = totalCount + 1;
+      if (data) {
+        setComments([...comments, data as Comment]);
+        setTotalCount(nextCount);
+        onCountChange?.(nextCount);
+        setExpanded(true);
+      }
+      await supabase.from("posts").update({ comments_count: nextCount }).eq("id", postId);
       sendNotification({ userId: postAuthorId, actorId: user.id, type: "comment", message: "прокомментировал(а) ваш пост", link: "/" });
       setNewComment("");
     } catch (err) { console.error(err); }
@@ -154,15 +175,30 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
   const [likeCount, setLikeCount] = useState(post.likes_count);
   const [saved, setSaved] = useState(post.user_saved || false);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comments_count);
+  const [viewCount, setViewCount] = useState(post.views_count);
   const { user, openAuthModal } = useAuth();
+
+  useEffect(() => {
+    setLiked(post.user_liked || false);
+    setLikeCount(post.likes_count);
+    setSaved(post.user_saved || false);
+    setCommentCount(post.comments_count);
+    setViewCount(post.views_count);
+  }, [post.user_liked, post.likes_count, post.user_saved, post.comments_count, post.views_count]);
 
   // Increment view count on mount
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("posts").update({ views_count: (post.views_count || 0) + 1 }).eq("id", post.id).then(() => {});
-  }, [post.id, post.views_count]);
+    const nextViewCount = (post.views_count || 0) + 1;
+    setViewCount(nextViewCount);
+    supabase.from("posts").update({ views_count: nextViewCount }).eq("id", post.id).then(() => {});
+    // We only want to register a view once per mounted card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
 
   const toggleLike = async () => {
     if (!user) { openAuthModal(); return; }
@@ -182,7 +218,7 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
       const realCount = count || 0;
       setLikeCount(realCount);
       await supabase.from("posts").update({ likes_count: realCount }).eq("id", post.id);
-    } catch (err) { setLiked(!newLiked); setLikeCount(newLiked ? likeCount - 1 : likeCount + 1); }
+    } catch { setLiked(!newLiked); setLikeCount(newLiked ? likeCount - 1 : likeCount + 1); }
     finally { setLikeLoading(false); }
   };
 
@@ -191,15 +227,42 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
     setDeleting(true);
     try {
       const supabase = createClient();
-      await supabase.from("comments").delete().eq("post_id", post.id);
-      await supabase.from("post_likes").delete().eq("post_id", post.id);
-      await supabase.from("poll_votes").delete().eq("poll_id", post.poll?.id || "none");
-      await supabase.from("poll_options").delete().eq("poll_id", post.poll?.id || "none");
-      await supabase.from("polls").delete().eq("post_id", post.id);
       await supabase.from("posts").delete().eq("id", post.id);
       onDeleted?.();
     } catch (err) { console.error("Delete error:", err); }
     finally { setDeleting(false); setShowMenu(false); }
+  };
+
+  const toggleSave = async () => {
+    if (!user) { openAuthModal(); return; }
+    if (saveLoading) return;
+
+    setSaveLoading(true);
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+
+    try {
+      const supabase = createClient();
+      if (nextSaved) {
+        const { error } = await supabase.from("post_saves").insert({
+          post_id: post.id,
+          user_id: user.id,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("post_saves")
+          .delete()
+          .eq("post_id", post.id)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      setSaved(!nextSaved);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const canDelete = user && (user.id === post.author_id || user.is_admin);
@@ -252,7 +315,14 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
       {/* Image */}
       {imageUrl && (
         <div className="mb-3.5 rounded-xl overflow-hidden border border-border">
-          <img src={imageUrl} alt="" className="w-full max-h-[500px] object-cover" />
+          <Image
+            src={imageUrl}
+            alt=""
+            width={1200}
+            height={800}
+            unoptimized
+            className="w-full max-h-[500px] object-cover"
+          />
         </div>
       )}
 
@@ -269,8 +339,8 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
       {/* Stats */}
       <div className="flex items-center gap-4 text-xs text-text-tertiary pb-3 border-b border-border mb-2.5">
         <span className="flex items-center gap-1"><Heart size={12} /> {formatNumber(likeCount)}</span>
-        <span className="flex items-center gap-1"><MessageCircle size={12} /> {formatNumber(post.comments_count)}</span>
-        <span className="flex items-center gap-1"><Eye size={12} /> {formatNumber(post.views_count)}</span>
+        <span className="flex items-center gap-1"><MessageCircle size={12} /> {formatNumber(commentCount)}</span>
+        <span className="flex items-center gap-1"><Eye size={12} /> {formatNumber(viewCount)}</span>
       </div>
 
       {/* Actions */}
@@ -286,14 +356,20 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
         <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all">
           <Share2 size={16} /> Поделиться
         </button>
-        <button onClick={() => setSaved(!saved)}
+        <button onClick={toggleSave}
           className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium transition-all",
-            saved ? "text-accent hover:bg-accent-soft" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>
+            saved ? "text-accent hover:bg-accent-soft" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}
+          disabled={saveLoading}>
           <Bookmark size={16} fill={saved ? "currentColor" : "none"} /> {saved ? "Сохранено" : "Сохранить"}
         </button>
       </div>
 
-      <CommentsSection postId={post.id} commentsCount={post.comments_count} postAuthorId={post.author_id} />
+      <CommentsSection
+        postId={post.id}
+        commentsCount={commentCount}
+        postAuthorId={post.author_id}
+        onCountChange={setCommentCount}
+      />
     </article>
   );
 }

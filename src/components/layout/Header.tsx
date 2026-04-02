@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText, Building2 } from "lucide-react";
+import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -101,6 +101,7 @@ export function Header() {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, name, role, company, account_type, avatar_url, is_verified")
+          .eq("profile_public", true)
           .or(`name.ilike.${searchTerm},role.ilike.${searchTerm},company.ilike.${searchTerm}`)
           .limit(5);
 

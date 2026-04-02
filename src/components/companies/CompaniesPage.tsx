@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Search, MapPin, Users, Check, ExternalLink } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 import type { Profile } from "@/types";
 
 export function CompaniesPage() {
@@ -22,6 +21,7 @@ export function CompaniesPage() {
           .from("profiles")
           .select("*")
           .eq("account_type", "business")
+          .eq("profile_public", true)
           .order("followers_count", { ascending: false })
           .limit(50);
         setCompanies((data || []) as Profile[]);

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Heart, MessageCircle, UserPlus, Briefcase, AtSign, Check, Bell, Trash2, CheckCheck } from "lucide-react";
+import { Heart, MessageCircle, UserPlus, Briefcase, AtSign, Bell, Trash2, CheckCheck } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -170,7 +169,7 @@ export function NotificationsPage() {
               <div
                 key={n.id}
                 className={cn(
-                  "card card-hover p-4 flex items-center gap-3 transition-all cursor-pointer",
+                  "group card card-hover p-4 flex items-center gap-3 transition-all cursor-pointer",
                   !n.is_read && "border-accent/20 bg-accent-soft/5"
                 )}
                 onClick={() => { markAsRead(n.id); if (n.link) window.location.href = n.link; }}

@@ -5,6 +5,7 @@ import { PostComposer } from "@/components/feed/PostComposer";
 import { PostCard } from "@/components/feed/PostCard";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
+import { enrichPosts } from "@/lib/posts";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/types";
 
@@ -35,41 +36,21 @@ export function FeedPage() {
 
       if (error) throw error;
 
-      // Fetch polls separately
-      const postIds = (data || []).map((p: any) => p.id);
-      const { data: pollsData } = await supabase
-        .from("polls")
-        .select("*, options:poll_options(*)")
-        .in("post_id", postIds);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      let filtered = await enrichPosts(
+        supabase,
+        ((data || []) as Post[]),
+        authUser?.id
+      );
 
-      // Map polls to posts
-      const pollMap = new Map();
-      (pollsData || []).forEach((poll: any) => {
-        pollMap.set(poll.post_id, poll);
-      });
-
-      // Combine posts with polls
-      let filtered = (data || []).map((p: any) => ({
-        ...p,
-        poll: pollMap.get(p.id) || undefined,
-      })) as Post[];
-
-      // Tab filtering
       if (feedTab === "companies") {
         filtered = filtered.filter((p) => p.author?.account_type === "business");
       } else if (feedTab === "people") {
         filtered = filtered.filter((p) => p.author?.account_type === "user");
       } else if (feedTab === "polls") {
-        filtered = filtered.filter((p) => p.poll && p.poll.options && p.poll.options.length > 0);
-      }
-
-      // Fetch user likes
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser && filtered.length > 0) {
-        const likePostIds = filtered.map((p) => p.id);
-        const { data: likes } = await supabase.from("post_likes").select("post_id").eq("user_id", authUser.id).in("post_id", likePostIds);
-        const likedSet = new Set((likes || []).map((l: any) => l.post_id));
-        filtered = filtered.map((p) => ({ ...p, user_liked: likedSet.has(p.id) }));
+        filtered = filtered.filter(
+          (p) => p.poll && p.poll.options && p.poll.options.length > 0
+        );
       }
 
       setPosts(filtered);

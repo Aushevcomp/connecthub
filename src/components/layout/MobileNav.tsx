@@ -14,7 +14,7 @@ export function MobileNav() {
     { href: "/", label: "Лента", icon: Home },
     { href: "/jobs", label: "Работа", icon: Briefcase },
     { href: "#", label: "Создать", icon: Plus, special: true },
-    { href: "#", label: "Алерты", icon: Bell },
+    { href: "/notifications", label: "Алерты", icon: Bell },
     { href: "/profile", label: "Профиль", icon: User, requiresAuth: true },
   ];
 
