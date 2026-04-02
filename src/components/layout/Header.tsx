@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText, Bookmark, MessageSquare } from "lucide-react";
+import { Search, Home, Briefcase, LogOut, X, User, FileText, Bookmark, Inbox } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
+import { useInboxCounts } from "@/hooks/useInboxCounts";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -19,113 +20,28 @@ interface SearchResult {
   isCompany?: boolean;
 }
 
-// ─── Notification Bell ───
-function NotificationBell() {
+function InboxButton() {
   const { user } = useAuth();
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) { setUnreadCount(0); return; }
-    const supabase = createClient();
-
-    async function fetchCount() {
-      const { count } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user!.id)
-        .eq("is_read", false);
-      setUnreadCount(count || 0);
-    }
-
-    fetchCount();
-
-    // Real-time
-    const channel = supabase
-      .channel("notif-bell")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, () => {
-        fetchCount();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <Link href="/notifications"
-      className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative",
-        pathname === "/notifications" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}>
-      <Bell size={20} />
-      {unreadCount > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-bg-primary">
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-function MessagesButton() {
-  const { user } = useAuth();
-  const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) {
-      setUnreadCount(0);
-      return;
-    }
-
-    const supabase = createClient();
-    const userId = user.id;
-
-    async function fetchCount() {
-      const { count } = await supabase
-        .from("messages")
-        .select("id", { count: "exact", head: true })
-        .eq("recipient_id", userId)
-        .eq("is_read", false);
-
-      setUnreadCount(count || 0);
-    }
-
-    fetchCount();
-
-    const channel = supabase
-      .channel("messages-button")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${userId}`,
-        },
-        () => {
-          fetchCount();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = useInboxCounts(user?.id);
+  const isActive = pathname === "/messages" || pathname === "/notifications";
 
   return (
     <Link
       href="/messages"
       className={cn(
         "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative",
-        pathname === "/messages"
+        isActive
           ? "text-accent bg-accent-soft"
           : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
       )}
+      title="Входящие"
+      aria-label="Входящие"
     >
-      <MessageSquare size={20} />
-      {unreadCount > 0 && (
+      <Inbox size={20} />
+      {counts.total > 0 && (
         <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-bg-primary">
-          {unreadCount > 9 ? "9+" : unreadCount}
+          {counts.total > 9 ? "9+" : counts.total}
         </span>
       )}
     </Link>
@@ -314,17 +230,16 @@ export function Header() {
           </button>
         )}
         {isAuthenticated ? (
-          <MessagesButton />
+          <InboxButton />
         ) : (
           <button
             className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all duration-200"
             onClick={() => openAuthModal("login")}
-            title="Сообщения"
+            title="Входящие"
           >
-            <MessageSquare size={20} />
+            <Inbox size={20} />
           </button>
         )}
-        <NotificationBell />
 
         {isAuthenticated && user ? (
           <div className="flex items-center gap-2 ml-1">

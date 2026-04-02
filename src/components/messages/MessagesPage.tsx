@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { InboxTabs } from "@/components/inbox/InboxTabs";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -847,6 +848,8 @@ export function MessagesPage() {
 
   return (
     <div className="space-y-5 animate-fade-in-up">
+      <InboxTabs />
+
       <section className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/88 p-5 md:p-7 shadow-[0_22px_90px_rgba(15,23,42,0.08)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(6,214,160,0.10),transparent_28%)]" />
         <div className="relative flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
@@ -863,7 +866,7 @@ export function MessagesPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 xl:min-w-[420px]">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 xl:min-w-[460px]">
             <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4">
               <p className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
                 Диалоги
@@ -882,16 +885,35 @@ export function MessagesPage() {
                 Сообщений ждут ответа
               </p>
             </div>
-            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4 col-span-2 md:col-span-1">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm p-4 col-span-2 md:col-span-3 xl:col-span-1">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-text-tertiary">
                 Сейчас открыт
               </p>
-              <p className="text-base font-bold mt-2 truncate">
-                {selectedPartner?.name || "Никто не выбран"}
-              </p>
-              <p className="text-sm text-text-secondary mt-1 truncate">
-                {selectedPartner ? getPartnerSubtitle(selectedPartner) : "Выберите диалог слева"}
-              </p>
+              {selectedPartner ? (
+                <div className="flex items-start gap-3 mt-3">
+                  <Avatar
+                    name={selectedPartner.name}
+                    size={42}
+                    src={selectedPartner.avatar_url}
+                    isCompany={selectedPartner.account_type === "business"}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-base font-bold leading-tight break-words">
+                      {selectedPartner.name}
+                    </p>
+                    <p className="text-sm text-text-secondary mt-1 break-words">
+                      {getPartnerSubtitle(selectedPartner)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-base font-bold mt-2">Никто не выбран</p>
+                  <p className="text-sm text-text-secondary mt-1">
+                    Выберите диалог слева
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Heart, MessageCircle, UserPlus, Briefcase, AtSign, Bell, Trash2, CheckCheck } from "lucide-react";
+import { InboxTabs } from "@/components/inbox/InboxTabs";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -124,20 +125,34 @@ export function NotificationsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-xl font-extrabold mb-1">Уведомления</h2>
-          <p className="text-sm text-text-secondary">
-            {unreadCount > 0 ? `${unreadCount} непрочитанных` : "Все прочитаны"}
-          </p>
+    <div className="space-y-5 animate-fade-in-up">
+      <InboxTabs />
+
+      <section className="relative overflow-hidden rounded-[30px] border border-border bg-bg-secondary/88 p-5 md:p-7 shadow-[0_22px_90px_rgba(15,23,42,0.08)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.14),transparent_34%)]" />
+        <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+          <div>
+            <p className="text-sm font-semibold text-accent">Системные сигналы</p>
+            <h2 className="text-3xl font-black mt-3">Уведомления</h2>
+            <p className="text-text-secondary mt-2 leading-relaxed max-w-2xl">
+              Лайки, комментарии, подписки и другие события, которые помогают не терять важные движения вокруг профиля и контента.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-[22px] border border-border bg-bg-primary/82 backdrop-blur-sm px-4 py-3 min-w-[170px]">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-text-tertiary">
+                Непрочитано
+              </p>
+              <p className="text-2xl font-black mt-2">{unreadCount}</p>
+            </div>
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} className="btn-ghost text-sm">
+                <CheckCheck size={14} /> Прочитать все
+              </button>
+            )}
+          </div>
         </div>
-        {unreadCount > 0 && (
-          <button onClick={markAllRead} className="btn-ghost text-sm">
-            <CheckCheck size={14} /> Прочитать все
-          </button>
-        )}
-      </div>
+      </section>
 
       {loading ? (
         <div className="space-y-2">
