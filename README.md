@@ -58,6 +58,7 @@ cp .env.local.example .env.local
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
 ```
 
 ### 4. Создай таблицы в базе
@@ -103,6 +104,7 @@ git push -u origin main
 3. В настройках добавь **Environment Variables**:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
 
 4. Нажми **Deploy** — готово!
 

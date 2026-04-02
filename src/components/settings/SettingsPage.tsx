@@ -35,6 +35,7 @@ export function SettingsPage() {
   const [privacySaved, setPrivacySaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -109,22 +110,34 @@ export function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== "УДАЛИТЬ") return;
+    setDeleteMsg(null);
     setDeleteLoading(true);
     try {
-      const supabase = createClient();
-      await supabase.from("comments").delete().eq("author_id", user.id);
-      await supabase.from("post_likes").delete().eq("user_id", user.id);
-      await supabase.from("post_saves").delete().eq("user_id", user.id);
-      await supabase.from("follows").delete().eq("follower_id", user.id);
-      await supabase.from("follows").delete().eq("following_id", user.id);
-      await supabase.from("notifications").delete().eq("user_id", user.id);
-      await supabase.from("job_applications").delete().eq("user_id", user.id);
-      await supabase.from("posts").delete().eq("author_id", user.id);
-      await supabase.from("jobs").delete().eq("company_id", user.id);
-      await supabase.from("profiles").delete().eq("id", user.id);
+      const response = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmation: deleteConfirm,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Не удалось удалить аккаунт");
+      }
+
       await signOut();
+      setUser(null);
       router.push("/");
-    } catch (err) { console.error("Delete account error:", err); }
+    } catch (err) {
+      console.error("Delete account error:", err);
+      setDeleteMsg(
+        err instanceof Error ? err.message : "Не удалось удалить аккаунт"
+      );
+    }
     finally { setDeleteLoading(false); }
   };
 
@@ -232,6 +245,11 @@ export function SettingsPage() {
             <input className="input-field max-w-xs !border-red-500/30 focus:!border-red-500"
               placeholder="УДАЛИТЬ" value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} />
           </div>
+          {deleteMsg && (
+            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-button px-3 py-2 mb-4">
+              {deleteMsg}
+            </div>
+          )}
           <button className="px-5 py-2 rounded-button font-semibold text-sm text-white cursor-pointer transition-all duration-200 inline-flex items-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleDeleteAccount} disabled={deleteLoading || deleteConfirm !== "УДАЛИТЬ"}>
             {deleteLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Удалить аккаунт навсегда
