@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, Plus, Bell, User } from "lucide-react";
+import { Home, Briefcase, Plus, Bell, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ export function MobileNav() {
     { href: "/jobs", label: "Работа", icon: Briefcase },
     { href: "#", label: "Создать", icon: Plus, special: true },
     { href: "/notifications", label: "Алерты", icon: Bell },
-    { href: "/profile", label: "Профиль", icon: User, requiresAuth: true },
+    { href: "/settings", label: "Настройки", icon: Settings, requiresAuth: true },
   ];
 
   return (

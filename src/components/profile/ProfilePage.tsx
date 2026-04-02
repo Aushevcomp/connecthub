@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/ui/Avatar";
 import { createClient } from "@/lib/supabase/client";
@@ -9,7 +10,7 @@ import { useAppStore } from "@/lib/store";
 import { timeAgo } from "@/lib/utils";
 import {
   MapPin, Users, Link as LinkIcon, Calendar,
-  Pencil, X, Camera, Plus, Save, Loader2
+  Pencil, X, Camera, Plus, Save, Loader2, Settings
 } from "lucide-react";
 import type { Post } from "@/types";
 import { PostCard } from "@/components/feed/PostCard";
@@ -421,9 +422,14 @@ export function ProfilePage() {
               </span>
             </div>
           </div>
-          <button className="btn-ghost text-sm" onClick={() => setEditOpen(true)}>
-            <Pencil size={14} /> Редактировать
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-ghost text-sm" onClick={() => setEditOpen(true)}>
+              <Pencil size={14} /> Редактировать
+            </button>
+            <Link href="/settings" className="btn-ghost text-sm">
+              <Settings size={14} /> Настройки
+            </Link>
+          </div>
         </div>
 
         {user.bio ? (
