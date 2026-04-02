@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, User, Building2, LogOut, Shield, Settings } from "lucide-react";
+import { Home, Briefcase, User, Building2, LogOut, Shield, Settings, Bookmark } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { cn, formatNumber } from "@/lib/utils";
@@ -15,6 +15,7 @@ export function Sidebar() {
     { href: "/", label: "Лента", icon: Home, badge: null },
     { href: "/jobs", label: "Вакансии", icon: Briefcase, badge: null },
     { href: "/profile", label: "Профиль", icon: User, badge: null, requiresAuth: true },
+    { href: "/saved", label: "Сохранённое", icon: Bookmark, badge: null, requiresAuth: true },
     { href: "/settings", label: "Настройки", icon: Settings, badge: null, requiresAuth: true },
     { href: "/companies", label: "Компании", icon: Building2, badge: null },
     ...(user?.is_admin ? [{ href: "/admin", label: "Админ-панель", icon: Shield, badge: null }] : []),

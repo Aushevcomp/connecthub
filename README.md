@@ -83,6 +83,12 @@ npm run lint
 npm run typecheck
 ```
 
+Релизная проверка перед деплоем:
+
+```bash
+npm run release:check
+```
+
 ---
 
 ## Деплой на Vercel
@@ -117,6 +123,24 @@ vercel --prod
 ```
 
 При первом запуске Vercel спросит настройки — выбери Next.js framework.
+
+### Быстрый прод-деплой
+
+Если Vercel уже подключён к GitHub-репозиторию и деплоит ветку `main`, то прод-обновление можно запускать так:
+
+```bash
+git add .
+git commit -m "Your release message"
+npm run deploy:prod
+```
+
+Что делает `npm run deploy:prod`:
+- запускает `lint`
+- запускает `typecheck`
+- собирает production build
+- пушит `main` в `origin`
+
+После пуша Vercel автоматически начнёт новый production deploy.
 
 ---
 

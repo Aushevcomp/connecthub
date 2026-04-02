@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release:check": "npm run lint && npm run build && npm run typecheck",
+    "deploy:prod": "npm run release:check && git push origin main"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

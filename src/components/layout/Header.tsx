@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText } from "lucide-react";
+import { Search, Home, Briefcase, Bell, LogOut, X, User, FileText, Bookmark } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -230,6 +230,20 @@ export function Header() {
           pathname === "/" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}><Home size={20} /></Link>
         <Link href="/jobs" className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
           pathname === "/jobs" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}><Briefcase size={20} /></Link>
+        {isAuthenticated ? (
+          <Link href="/saved" className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
+            pathname === "/saved" ? "text-accent bg-accent-soft" : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary")}>
+            <Bookmark size={20} />
+          </Link>
+        ) : (
+          <button
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-bg-tertiary hover:text-text-primary transition-all duration-200"
+            onClick={openAuthModal}
+            title="Сохранённое"
+          >
+            <Bookmark size={20} />
+          </button>
+        )}
         <NotificationBell />
 
         {isAuthenticated && user ? (

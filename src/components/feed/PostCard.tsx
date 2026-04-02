@@ -170,7 +170,15 @@ function CommentsSection({
 }
 
 // ─── Post Card ───
-export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => void }) {
+export function PostCard({
+  post,
+  onDeleted,
+  onSavedChange,
+}: {
+  post: Post;
+  onDeleted?: () => void;
+  onSavedChange?: (saved: boolean) => void;
+}) {
   const [liked, setLiked] = useState(post.user_liked || false);
   const [likeCount, setLikeCount] = useState(post.likes_count);
   const [saved, setSaved] = useState(post.user_saved || false);
@@ -257,6 +265,7 @@ export function PostCard({ post, onDeleted }: { post: Post; onDeleted?: () => vo
           .eq("user_id", user.id);
         if (error) throw error;
       }
+      onSavedChange?.(nextSaved);
     } catch (err) {
       console.error("Save error:", err);
       setSaved(!nextSaved);
