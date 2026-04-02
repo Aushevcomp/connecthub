@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 interface InboxCounts {
@@ -15,6 +15,9 @@ export function useInboxCounts(userId?: string): InboxCounts {
     notifications: 0,
     total: 0,
   });
+  const channelScopeRef = useRef(
+    `scope-${Math.random().toString(36).slice(2, 10)}`
+  );
 
   useEffect(() => {
     if (!userId) {
@@ -52,7 +55,7 @@ export function useInboxCounts(userId?: string): InboxCounts {
     fetchCounts();
 
     const messagesChannel = supabase
-      .channel(`inbox-messages-${userId}`)
+      .channel(`inbox-messages-${userId}-${channelScopeRef.current}`)
       .on(
         "postgres_changes",
         {
@@ -66,7 +69,7 @@ export function useInboxCounts(userId?: string): InboxCounts {
       .subscribe();
 
     const notificationsChannel = supabase
-      .channel(`inbox-notifications-${userId}`)
+      .channel(`inbox-notifications-${userId}-${channelScopeRef.current}`)
       .on(
         "postgres_changes",
         {
