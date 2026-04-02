@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, User, Building2, LogOut, Shield, Settings, Bookmark, Inbox } from "lucide-react";
+import { Home, Briefcase, User, Building2, LogOut, Shield, Settings, Bookmark, MessageSquare } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { cn, formatNumber } from "@/lib/utils";
@@ -16,7 +16,7 @@ export function Sidebar() {
     { href: "/jobs", label: "Вакансии", icon: Briefcase, badge: null },
     { href: "/profile", label: "Профиль", icon: User, badge: null, requiresAuth: true },
     { href: "/saved", label: "Сохранённое", icon: Bookmark, badge: null, requiresAuth: true },
-    { href: "/messages", label: "Входящие", icon: Inbox, badge: null, requiresAuth: true, matches: ["/messages", "/notifications"] },
+    { href: "/messages", label: "Сообщения", icon: MessageSquare, badge: null, requiresAuth: true },
     { href: "/settings", label: "Настройки", icon: Settings, badge: null, requiresAuth: true },
     { href: "/companies", label: "Компании", icon: Building2, badge: null },
     ...(user?.is_admin ? [{ href: "/admin", label: "Админ-панель", icon: Shield, badge: null }] : []),
@@ -67,7 +67,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="card p-2">
         {navItems.map((item) => {
-          const isActive = item.matches ? item.matches.includes(pathname) : pathname === item.href;
+          const isActive = pathname === item.href;
           const Icon = item.icon;
 
           return (
