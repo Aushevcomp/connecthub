@@ -54,6 +54,12 @@ html[data-theme="light"] {
     box-sizing: border-box;
   }
 
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-bg-primary text-text-primary font-sans antialiased;
     transition: background-color 0.25s ease, color 0.25s ease;

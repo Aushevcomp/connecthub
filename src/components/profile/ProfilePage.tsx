@@ -367,29 +367,29 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="animate-fade-in-up">
+    <div className="animate-fade-in-up overflow-x-hidden">
       {/* Banner */}
       <div
-        className="h-44 rounded-card relative"
+        className="h-36 sm:h-44 rounded-card relative"
         style={{
           background: user.banner_url
             ? `url(${user.banner_url}) center/cover`
             : "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
         }}
       >
-        <div className="absolute -bottom-12 left-6 border-4 border-bg-primary rounded-full">
+        <div className="absolute -bottom-10 left-4 sm:-bottom-12 sm:left-6 border-[3px] sm:border-4 border-bg-primary rounded-full">
           <Avatar name={user.name} size={96} src={user.avatar_url} isCompany={user.account_type === "business"} />
         </div>
       </div>
 
       {/* Info */}
-      <div className="mt-16 mb-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-extrabold flex items-center gap-2">
+      <div className="mt-14 sm:mt-16 mb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-extrabold flex flex-wrap items-center gap-2">
               {user.name}
               {user.is_verified && (
-                <span className="w-5 h-5 rounded-full bg-accent flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -404,36 +404,36 @@ export function ProfilePage() {
               {user.company ? ` @ ${user.company}` : ""}
             </p>
 
-            <div className="flex flex-wrap gap-4 mt-3 text-sm text-text-tertiary">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-sm text-text-tertiary min-w-0">
               {user.location && (
-                <span className="flex items-center gap-1"><MapPin size={14} /> {user.location}</span>
+                <span className="flex items-center gap-1 min-w-0"><MapPin size={14} className="flex-shrink-0" /> {user.location}</span>
               )}
-              <span className="flex items-center gap-1">
-                <Users size={14} /> {user.followers_count} связей
+              <span className="flex items-center gap-1 min-w-0">
+                <Users size={14} className="flex-shrink-0" /> {user.followers_count} связей
               </span>
               {user.website && (
                 <a href={user.website} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-accent transition-colors">
-                  <LinkIcon size={14} /> {user.website.replace(/https?:\/\//, "")}
+                  className="flex items-center gap-1 min-w-0 break-all hover:text-accent transition-colors">
+                  <LinkIcon size={14} className="flex-shrink-0" /> {user.website.replace(/https?:\/\//, "")}
                 </a>
               )}
-              <span className="flex items-center gap-1">
-                <Calendar size={14} /> {timeAgo(user.created_at)}
+              <span className="flex items-center gap-1 min-w-0">
+                <Calendar size={14} className="flex-shrink-0" /> {timeAgo(user.created_at)}
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button className="btn-ghost text-sm" onClick={() => setEditOpen(true)}>
+          <div className="flex w-full flex-wrap gap-2 md:w-auto">
+            <button className="btn-ghost text-sm flex-1 justify-center sm:flex-none" onClick={() => setEditOpen(true)}>
               <Pencil size={14} /> Редактировать
             </button>
-            <Link href="/settings" className="btn-ghost text-sm">
+            <Link href="/settings" className="btn-ghost text-sm flex-1 justify-center sm:flex-none">
               <Settings size={14} /> Настройки
             </Link>
           </div>
         </div>
 
         {user.bio ? (
-          <p className="mt-4 text-sm text-text-secondary leading-relaxed">{user.bio}</p>
+          <p className="mt-4 text-sm text-text-secondary leading-relaxed break-words">{user.bio}</p>
         ) : (
           <button onClick={() => setEditOpen(true)}
             className="mt-4 text-sm text-text-tertiary hover:text-accent transition-colors cursor-pointer">

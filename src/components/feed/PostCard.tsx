@@ -279,12 +279,12 @@ export function PostCard({
   const imageUrl = (post as any).image_url;
 
   return (
-    <article className={cn("card card-hover p-5 mb-4 animate-fade-in-up", deleting && "opacity-50 pointer-events-none")}>
+    <article className={cn("card card-hover p-4 sm:p-5 mb-4 animate-fade-in-up overflow-hidden", deleting && "opacity-50 pointer-events-none")}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-3.5">
         <Avatar name={author?.name || "User"} size={44} src={author?.avatar_url} isCompany={author?.account_type === "business"} />
-        <div className="flex-1">
-          <p className="text-[15px] font-semibold flex items-center gap-1.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-semibold flex items-center gap-1.5 min-w-0">
             {author?.name || "Пользователь"}
             {author?.is_verified && (
               <span className="w-4 h-4 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
@@ -292,10 +292,10 @@ export function PostCard({
               </span>
             )}
           </p>
-          <p className="text-xs text-text-secondary mt-0.5">{author?.role || author?.company || ""}</p>
+          <p className="text-xs text-text-secondary mt-0.5 truncate">{author?.role || author?.company || ""}</p>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-text-tertiary">{timeAgo(post.created_at)}</span>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="text-xs text-text-tertiary whitespace-nowrap">{timeAgo(post.created_at)}</span>
           {canDelete && (
             <div className="relative">
               <button onClick={() => setShowMenu(!showMenu)}
@@ -319,7 +319,7 @@ export function PostCard({
       </div>
 
       {/* Content */}
-      <div className="text-[14.5px] leading-relaxed whitespace-pre-wrap mb-3.5">{post.content}</div>
+      <div className="text-[14.5px] leading-relaxed whitespace-pre-wrap break-words mb-3.5">{post.content}</div>
 
       {/* Image */}
       {imageUrl && (
@@ -346,30 +346,34 @@ export function PostCard({
       )}
 
       {/* Stats */}
-      <div className="flex items-center gap-4 text-xs text-text-tertiary pb-3 border-b border-border mb-2.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-text-tertiary pb-3 border-b border-border mb-2.5">
         <span className="flex items-center gap-1"><Heart size={12} /> {formatNumber(likeCount)}</span>
         <span className="flex items-center gap-1"><MessageCircle size={12} /> {formatNumber(commentCount)}</span>
         <span className="flex items-center gap-1"><Eye size={12} /> {formatNumber(viewCount)}</span>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
         <button onClick={toggleLike}
-          className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium transition-all",
+          className={cn("min-w-0 flex items-center justify-center gap-1.5 py-2 rounded-button text-xs sm:text-sm font-medium transition-all",
             liked ? "text-red-400 hover:bg-red-500/10" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>
-          <Heart size={16} fill={liked ? "currentColor" : "none"} /> Нравится
+          <Heart size={16} className="flex-shrink-0" fill={liked ? "currentColor" : "none"} />
+          <span className="truncate">Нравится</span>
         </button>
-        <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all">
-          <MessageCircle size={16} /> Комментарий
+        <button className="min-w-0 flex items-center justify-center gap-1.5 py-2 rounded-button text-xs sm:text-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all">
+          <MessageCircle size={16} className="flex-shrink-0" />
+          <span className="truncate">Комментарий</span>
         </button>
-        <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all">
-          <Share2 size={16} /> Поделиться
+        <button className="min-w-0 flex items-center justify-center gap-1.5 py-2 rounded-button text-xs sm:text-sm font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all">
+          <Share2 size={16} className="flex-shrink-0" />
+          <span className="truncate">Поделиться</span>
         </button>
         <button onClick={toggleSave}
-          className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-button text-sm font-medium transition-all",
+          className={cn("min-w-0 flex items-center justify-center gap-1.5 py-2 rounded-button text-xs sm:text-sm font-medium transition-all",
             saved ? "text-accent hover:bg-accent-soft" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}
           disabled={saveLoading}>
-          <Bookmark size={16} fill={saved ? "currentColor" : "none"} /> {saved ? "Сохранено" : "Сохранить"}
+          <Bookmark size={16} className="flex-shrink-0" fill={saved ? "currentColor" : "none"} />
+          <span className="truncate">{saved ? "Сохранено" : "Сохранить"}</span>
         </button>
       </div>
 
